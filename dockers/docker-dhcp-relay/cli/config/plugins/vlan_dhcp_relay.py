@@ -1,6 +1,10 @@
 import click
 import utilities_common.cli as clicommon
 import ipaddress
+import sys
+
+sys.path.append('../cli/utils/')
+from dhcp_relay_utils import restart_dhcp_relay_service
 
 @click.group(cls=clicommon.AbbreviationGroup, name='dhcp_relay')
 def vlan_dhcp_relay():
@@ -51,10 +55,7 @@ def add_vlan_dhcp_relay_destination(db, vid, dhcp_relay_destination_ips):
     if len(added_servers):
         click.echo("Added DHCP relay destination addresses {} to {}".format(added_servers, vlan_name))
         try:
-            click.echo("Restarting DHCP relay service...")
-            clicommon.run_command("systemctl stop dhcp_relay", display_cmd=False)
-            clicommon.run_command("systemctl reset-failed dhcp_relay", display_cmd=False)
-            clicommon.run_command("systemctl start dhcp_relay", display_cmd=False)
+            restart_dhcp_relay_service()
         except SystemExit as e:
             ctx.fail("Restart service dhcp_relay failed with error {}".format(e))
 

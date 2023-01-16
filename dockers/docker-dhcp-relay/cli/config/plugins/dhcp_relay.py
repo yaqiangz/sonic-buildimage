@@ -1,6 +1,10 @@
 import click
 import ipaddress
+import sys
 import utilities_common.cli as clicommon
+
+sys.path.append('../cli/utils/')
+from dhcp_relay_utils import restart_dhcp_relay_service
 
 DHCP_RELAY_TABLE = "DHCP_RELAY"
 DHCPV6_SERVERS = "dhcpv6_servers"
@@ -30,13 +34,6 @@ def get_dhcp_servers(db, vlan_name, ctx, table_name, dhcp_servers_str):
     dhcp_servers = table.get(dhcp_servers_str, [])
 
     return dhcp_servers, table
-
-
-def restart_dhcp_relay_service():
-    click.echo("Restarting DHCP relay service...")
-    clicommon.run_command("systemctl stop dhcp_relay", display_cmd=False)
-    clicommon.run_command("systemctl reset-failed dhcp_relay", display_cmd=False)
-    clicommon.run_command("systemctl start dhcp_relay", display_cmd=False)
 
 
 def add_dhcp_relay(vid, dhcp_relay_ips, db, ip_version):
