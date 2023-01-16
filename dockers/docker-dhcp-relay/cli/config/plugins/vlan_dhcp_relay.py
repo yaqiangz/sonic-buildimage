@@ -2,8 +2,7 @@ import click
 import utilities_common.cli as clicommon
 import ipaddress
 import sys
-
-sys.path.append('../cli/utils/')
+sys.path.append('../../utils/')
 from dhcp_relay_utils import restart_dhcp_relay_service
 
 @click.group(cls=clicommon.AbbreviationGroup, name='dhcp_relay')
