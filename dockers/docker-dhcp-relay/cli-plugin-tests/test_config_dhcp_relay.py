@@ -111,7 +111,7 @@ class TestConfigDhcpRelay(object):
         cli = mock.MagicMock()
         dhcp_relay.register(cli)
 
-    def test_test_config_dhcp_relay_add_del_with_nonexist_vlanid(self, ip_version, op):
+    def test_config_dhcp_relay_add_del_with_nonexist_vlanid(self, ip_version, op):
         runner = CliRunner()
 
         with mock.patch("utilities_common.cli.run_command") as mock_run_command:
