@@ -1,7 +1,7 @@
 import click
 import utilities_common.cli as clicommon
 import ipaddress
-from config_utils import restart_dhcp_relay_service
+from dhcp_relay import restart_dhcp_relay_service
 
 @click.group(cls=clicommon.AbbreviationGroup, name='dhcp_relay')
 def vlan_dhcp_relay():
