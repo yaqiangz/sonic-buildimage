@@ -123,7 +123,6 @@ class TestConfigDhcpRelay(object):
             assert result.exit_code != 0
             assert "Error: Vlan1001 doesn't exist" in result.output
             assert mock_run_command.call_count == 0
-            assert ip_version == ip_version
 
     def test_config_add_del_dhcp_relay_with_invalid_ip(self, ip_version, op):
         runner = CliRunner()
