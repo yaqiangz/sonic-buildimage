@@ -10,7 +10,7 @@ from utilities_common.db import Db
 import pytest
 
 sys.path.append('../cli/config/plugins/')
-import vlan_dhcp_relay as dhcp_relay
+import dhcp_relay
 
 config_vlan_add_dhcp_relay_output="""\
 Added DHCP relay destination addresses ['192.0.0.100'] to Vlan1000
