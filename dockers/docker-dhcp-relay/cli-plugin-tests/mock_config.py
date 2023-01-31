@@ -1,6 +1,6 @@
-TEST_DATA = [ 
+TEST_DATA = [
     [
-        "DHCPv6_Helpers",
+        "ipv6",
         {
             "config_db": {
                 "DHCP_RELAY": {
@@ -12,7 +12,22 @@ TEST_DATA = [
                         "dhcpv6_option|rfc6939_support": "true"
                     }
                 }
-            },
+            }
         },
     ],
+    [
+        "ipv4",
+        {
+            "config_db": {
+                "VLAN": {
+                    "Vlan1000": {
+                        "dhcp_servers": [
+                            "192.0.0.1",
+                            "192.0.0.2"
+                        ]
+                    }
+                }
+            }
+        }
+    ]
 ]
