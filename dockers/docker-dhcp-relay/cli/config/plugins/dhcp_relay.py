@@ -12,6 +12,7 @@ IPV4 = 4
 
 
 def validate_ips(ctx, ips, ip_version):
+
     for ip in ips:
         try:
             ip_address = ipaddress.ip_address(ip)
