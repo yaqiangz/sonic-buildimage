@@ -3,10 +3,12 @@ import sys
 import os
 sys.path.append('../cli/show/plugins/')
 import show_dhcp_relay as show
+import show.vlan as vlan
 from swsscommon import swsscommon
 from mock_config import TEST_DATA
 from parameterized import parameterized
 from pyfakefs.fake_filesystem_unittest import patchfs
+from unittest import mock
 
 try:
     sys.path.insert(0, '../../../src/sonic-host-services/tests/common')
@@ -41,6 +43,20 @@ IP_VER_TEST_PARAM_MAP = {
         "table": "DHCP_RELAY"
     }
 }
+
+
+def test_plugin_registration():
+    cli = mock.MagicMock()
+    show.register(cli)
+    assert 'DHCP Helper Address' in dict(vlan.VlanBrief.COLUMNS)
+
+
+def test_dhcp_relay_column_output():
+    ctx = (
+        ({'Vlan1001': {'dhcp_servers': ['192.0.0.1', '192.168.0.2']}}, {}, {}),
+        (),
+    )
+    assert show.get_dhcp_helper_address(ctx, 'Vlan1001') == '192.0.0.1\n192.168.0.2'
 
 
 @parameterized.expand(TEST_DATA)
