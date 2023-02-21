@@ -17,14 +17,32 @@ try:
 except KeyError:
     pass
 
-expected_ipv6_table = """\
+expected_ipv6_table_with_header = """\
++-------------+----------------------+
+|   Interface |   DHCP Relay Address |
++=============+======================+
+|    Vlan1000 |         fc02:2000::1 |
+|             |         fc02:2000::2 |
++-------------+----------------------+
+"""
+
+expected_ipv4_table_with_header = """\
++-------------+----------------------+
+|   Interface |   DHCP Relay Address |
++=============+======================+
+|    Vlan1000 |            192.0.0.1 |
+|             |            192.0.0.2 |
++-------------+----------------------+
+"""
+
+expected_ipv6_table_without_header = """\
 --------  ------------
 Vlan1000  fc02:2000::1
           fc02:2000::2
 --------  ------------
 """
 
-expected_ipv4_table = """\
+expected_ipv4_table_without_header = """\
 --------  ---------
 Vlan1000  192.0.0.1
           192.0.0.2
@@ -66,6 +84,15 @@ def test_show_dhcp_relay(test_name, test_data, fs):
         fs.create_file(DBCONFIG_PATH)
     MockConfigDb.set_config_db(test_data["config_db"])
     config_db = MockConfigDb()
-    table = config_db.get_table(IP_VER_TEST_PARAM_MAP[test_name]["table"])
-    result = show.get_data(table, "Vlan1000", IP_VER_TEST_PARAM_MAP[test_name]["entry"])
-    assert result == (expected_ipv4_table if test_name == "ipv4" else expected_ipv6_table)
+    ip_version = "ipv4" if "ipv4" in test_name else "ipv6"
+    table = config_db.get_table(IP_VER_TEST_PARAM_MAP[ip_version]["table"])
+    result = show.get_data(table, "Vlan1000", IP_VER_TEST_PARAM_MAP[ip_version]["entry"], "with_header" in test_name)
+    if test_name == "ipv4_with_header":
+        expected_output = expected_ipv4_table_with_header
+    elif test_name == "ipv4_without_header":
+        expected_output = expected_ipv4_table_without_header
+    elif test_name == "ipv6_with_header":
+        expected_output = expected_ipv6_table_with_header
+    elif test_name == "ipv6_without_header":
+        expected_output = expected_ipv6_table_without_header
+    assert result == expected_output
