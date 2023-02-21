@@ -110,31 +110,36 @@ def dhcp_relay_helper():
     pass
 
 
-def get_dhcp_relay(table_name, entry_name):
+def get_dhcp_relay(table_name, entry_name, with_header):
     if config_db is not None:
         config_db.connect()
         table_data = config_db.get_table(table_name)
         if table_data is not None:
             vlans = config_db.get_keys(table_name)
             for vlan in vlans:
-                output = get_data(table_data, vlan, entry_name)
+                output = get_data(table_data, vlan, entry_name, with_header)
                 print(output)
 
 
 @dhcp_relay_helper.command('ipv6')
 def get_dhcpv6_helper_address():
     """Parse through DHCP_RELAY table for each interface in config_db.json and print dhcpv6 helpers in table format"""
-    get_dhcp_relay(DHCP_RELAY, DHCPV6_SERVERS)
+    get_dhcp_relay(DHCP_RELAY, DHCPV6_SERVERS, with_header=False)
 
 
-def get_data(table_data, vlan, entry_name):
+def get_data(table_data, vlan, entry_name, with_header=True):
     vlan_data = table_data.get(vlan)
     helpers_data = vlan_data.get(entry_name)
     if helpers_data is not None:
         addr = {vlan: []}
         for ip in helpers_data:
             addr[vlan].append(ip)
-    output = tabulate({'Interface': [vlan], vlan: addr.get(vlan)}, tablefmt='simple', stralign='right') + '\n'
+
+    data = {'Interface': [vlan], 'DHCP Relay Address': ["\n".join(addr.get(vlan))]}
+    if with_header:
+        output = tabulate(data, tablefmt='grid', stralign='right', headers='keys') + '\n'
+    else:
+        output = tabulate(data, tablefmt='simple', stralign='right') + '\n'
     return output
 
 
@@ -156,12 +161,12 @@ def dhcp_relay_ipv4():
 
 @dhcp_relay_ipv4.command("helper")
 def dhcp_relay_ipv4_destination():
-    get_dhcp_relay(VLAN, DHCPV4_SERVERS)
+    get_dhcp_relay(VLAN, DHCPV4_SERVERS, with_header=True)
 
 
 @dhcp_relay_ipv6.command("destination")
 def dhcp_relay_ipv6_destination():
-    get_dhcp_relay(DHCP_RELAY, DHCPV6_SERVERS)
+    get_dhcp_relay(DHCP_RELAY, DHCPV6_SERVERS, with_header=True)
 
 
 @dhcp_relay_ipv6.command("counters")
