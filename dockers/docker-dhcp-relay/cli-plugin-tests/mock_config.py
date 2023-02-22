@@ -45,20 +45,5 @@ TEST_DATA = [
                 }
             }
         }
-    ],
-    [
-        "ipv4_without_header",
-        {
-            "config_db": {
-                "VLAN": {
-                    "Vlan1000": {
-                        "dhcp_servers": [
-                            "192.0.0.1",
-                            "192.0.0.2"
-                        ]
-                    }
-                }
-            }
-        }
     ]
 ]

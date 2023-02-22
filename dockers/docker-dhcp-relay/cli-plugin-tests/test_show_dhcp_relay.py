@@ -86,13 +86,13 @@ def test_show_dhcp_relay(test_name, test_data, fs):
     config_db = MockConfigDb()
     ip_version = "ipv4" if "ipv4" in test_name else "ipv6"
     table = config_db.get_table(IP_VER_TEST_PARAM_MAP[ip_version]["table"])
-    result = show.get_data(table, "Vlan1000", IP_VER_TEST_PARAM_MAP[ip_version]["entry"], "with_header" in test_name)
     if test_name == "ipv4_with_header":
+        result = show.get_dhcp_relay_data_with_header(table, IP_VER_TEST_PARAM_MAP[ip_version]["entry"])
         expected_output = expected_ipv4_table_with_header
-    elif test_name == "ipv4_without_header":
-        expected_output = expected_ipv4_table_without_header
     elif test_name == "ipv6_with_header":
+        result = show.get_dhcp_relay_data_with_header(table, IP_VER_TEST_PARAM_MAP[ip_version]["entry"])
         expected_output = expected_ipv6_table_with_header
     elif test_name == "ipv6_without_header":
+        result = show.get_data(table, "Vlan1000")
         expected_output = expected_ipv6_table_without_header
     assert result == expected_output

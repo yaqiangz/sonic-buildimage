@@ -110,15 +110,40 @@ def dhcp_relay_helper():
     pass
 
 
+def get_dhcp_relay_data_with_header(table_data, entry_name):
+    vlan_relay = {}
+    vlans = table_data.keys()
+    for vlan in vlans:
+        vlan_data = table_data.get(vlan)
+        dhcp_relay_data = vlan_data.get(entry_name)
+        if dhcp_relay_data is None:
+            continue
+
+        vlan_relay[vlan] = []
+        for address in dhcp_relay_data:
+            vlan_relay[vlan].append(address)
+
+    data = {"Interface": vlan_relay.keys(), "DHCP Relay Address": ["\n".join(vlan_relay[vlan])]}
+    return tabulate(data, tablefmt='grid', stralign='right', headers='keys') + '\n'
+
+
 def get_dhcp_relay(table_name, entry_name, with_header):
-    if config_db is not None:
-        config_db.connect()
-        table_data = config_db.get_table(table_name)
-        if table_data is not None:
-            vlans = config_db.get_keys(table_name)
-            for vlan in vlans:
-                output = get_data(table_data, vlan, entry_name, with_header)
-                print(output)
+    if config_db is None:
+        return
+
+    config_db.connect()
+    table_data = config_db.get_table(table_name)
+    if table_data is None:
+        return
+
+    if with_header:
+        output = get_dhcp_relay_data_with_header(table_data, entry_name)
+        print(output)
+    else:
+        vlans = config_db.get_keys(table_name)
+        for vlan in vlans:
+            output = get_data(table_data, vlan, entry_name)
+            print(output)
 
 
 @dhcp_relay_helper.command('ipv6')
@@ -127,19 +152,14 @@ def get_dhcpv6_helper_address():
     get_dhcp_relay(DHCP_RELAY, DHCPV6_SERVERS, with_header=False)
 
 
-def get_data(table_data, vlan, entry_name, with_header=True):
+def get_data(table_data, vlan):
     vlan_data = table_data.get(vlan)
-    helpers_data = vlan_data.get(entry_name)
+    helpers_data = vlan_data.get('dhcpv6_servers')
     if helpers_data is not None:
-        addr = {vlan: []}
+        addr = {vlan:[]}
         for ip in helpers_data:
             addr[vlan].append(ip)
-
-    data = {'Interface': [vlan], 'DHCP Relay Address': ["\n".join(addr.get(vlan))]}
-    if with_header:
-        output = tabulate(data, tablefmt='grid', stralign='right', headers='keys') + '\n'
-    else:
-        output = tabulate(data, tablefmt='simple', stralign='right') + '\n'
+    output = tabulate({'Interface':[vlan], vlan:addr.get(vlan)}, tablefmt='simple', stralign='right') + '\n'
     return output
 
 
