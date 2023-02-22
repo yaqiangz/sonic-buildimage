@@ -116,14 +116,16 @@ def get_dhcp_relay_data_with_header(table_data, entry_name):
     for vlan in vlans:
         vlan_data = table_data.get(vlan)
         dhcp_relay_data = vlan_data.get(entry_name)
-        if dhcp_relay_data is None:
+        if dhcp_relay_data is None or len(dhcp_relay_data) == 0:
             continue
 
         vlan_relay[vlan] = []
         for address in dhcp_relay_data:
             vlan_relay[vlan].append(address)
 
-    data = {"Interface": vlan_relay.keys(), "DHCP Relay Address": ["\n".join(vlan_relay[vlan])]}
+    dhcp_relay_vlan_keys = vlan_relay.keys()
+    relay_address_list = ["\n".join(vlan_relay[key]) for key in dhcp_relay_vlan_keys]
+    data = {"Interface": dhcp_relay_vlan_keys, "DHCP Relay Address": relay_address_list}
     return tabulate(data, tablefmt='grid', stralign='right', headers='keys') + '\n'
 
 
@@ -142,7 +144,7 @@ def get_dhcp_relay(table_name, entry_name, with_header):
     else:
         vlans = config_db.get_keys(table_name)
         for vlan in vlans:
-            output = get_data(table_data, vlan, entry_name)
+            output = get_data(table_data, vlan)
             print(output)
 
 
@@ -153,13 +155,14 @@ def get_dhcpv6_helper_address():
 
 
 def get_data(table_data, vlan):
-    vlan_data = table_data.get(vlan)
+    vlan_data = table_data.get(vlan, {})
     helpers_data = vlan_data.get('dhcpv6_servers')
+    addr = {vlan:[]}
+    output = ''
     if helpers_data is not None:
-        addr = {vlan:[]}
         for ip in helpers_data:
             addr[vlan].append(ip)
-    output = tabulate({'Interface':[vlan], vlan:addr.get(vlan)}, tablefmt='simple', stralign='right') + '\n'
+        output = tabulate({'Interface':[vlan], vlan:addr.get(vlan)}, tablefmt='simple', stralign='right') + '\n'
     return output
 
 
