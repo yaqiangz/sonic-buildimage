@@ -7,13 +7,19 @@ import pytest
 sys.path.append("../cli/config/plugins/")
 import dhcp_relay
 
-config_dhcp_relay_add_output = """\
+config_dhcp_relay_ipv6_add_output = """\
 Added DHCP relay address [{}] to Vlan1000
 Restarting DHCP relay service...
 """
-config_dhcp_relay_del_output = """\
+config_dhcp_relay_ipv4_add_output = """\
+Added DHCP relay address [{}] to Vlan1000
+"""
+config_dhcp_relay_ipv6_del_output = """\
 Removed DHCP relay address [{}] from Vlan1000
 Restarting DHCP relay service...
+"""
+config_dhcp_relay_ipv4_del_output = """\
+Removed DHCP relay address [{}] from Vlan1000
 """
 expected_dhcp_relay_add_config_db_output = {
     "ipv4": {
@@ -61,7 +67,8 @@ IP_VER_TEST_PARAM_MAP = {
         "exist_ip": "192.0.0.1",
         "nonexist_ip": "192.0.0.2",
         "invalid_ip": "192.0.0",
-        "table": "VLAN"
+        "table": "VLAN",
+        "call_count": 0
     },
     "ipv6": {
         "command": "destination",
@@ -73,7 +80,8 @@ IP_VER_TEST_PARAM_MAP = {
         "exist_ip": "fc02:2000::1",
         "nonexist_ip": "fc02:2000::2",
         "invalid_ip": "fc02:2000:",
-        "table": "DHCP_RELAY"
+        "table": "DHCP_RELAY",
+        "call_count": 3
     }
 }
 
@@ -192,6 +200,7 @@ class TestConfigDhcpRelay(object):
         db.cfgdb = mock_cfgdb
         test_ip = IP_VER_TEST_PARAM_MAP[ip_version]["ips"][0]
         config_db_table = IP_VER_TEST_PARAM_MAP[ip_version]["table"]
+        call_count = IP_VER_TEST_PARAM_MAP[ip_version]["call_count"]
 
         with mock.patch("utilities_common.cli.run_command") as mock_run_command:
             # add new dhcp relay
@@ -201,10 +210,12 @@ class TestConfigDhcpRelay(object):
             print(result.exit_code)
             print(result.output)
             assert result.exit_code == 0
-            assert result.output == config_dhcp_relay_add_output.format(test_ip)
+            exp_output = config_dhcp_relay_ipv6_add_output if ip_version == "ipv6" \
+                else config_dhcp_relay_ipv4_add_output
+            assert result.output == exp_output.format(test_ip)
             assert db.cfgdb.get_entry(config_db_table, "Vlan1000") \
                 == expected_dhcp_relay_add_config_db_output[ip_version]
-            assert mock_run_command.call_count == 3
+            assert mock_run_command.call_count == call_count
             db.cfgdb.set_entry.assert_called_once_with(config_db_table, "Vlan1000",
                                                        expected_dhcp_relay_add_config_db_output[ip_version])
 
@@ -217,11 +228,13 @@ class TestConfigDhcpRelay(object):
             print(result.exit_code)
             print(result.output)
             assert result.exit_code == 0
-            assert result.output == config_dhcp_relay_del_output.format(test_ip)
-            assert mock_run_command.call_count == 3
+            exp_output = config_dhcp_relay_ipv6_del_output if ip_version == "ipv6" \
+                else config_dhcp_relay_ipv4_del_output
+            assert result.output == exp_output.format(test_ip)
+            assert mock_run_command.call_count == call_count
             assert db.cfgdb.get_entry(config_db_table, "Vlan1000") \
                 == expected_dhcp_relay_del_config_db_output[ip_version]
-            db.cfgdb.set_entry.assert_called_once_with(config_db_table, "Vlan1000",
+            db.cfgdb.mod_entry.assert_called_once_with(config_db_table, "Vlan1000",
                                                        expected_dhcp_relay_del_config_db_output[ip_version])
 
     def test_config_add_del_multiple_dhcp_relay(self, mock_cfgdb, ip_version):
@@ -230,6 +243,7 @@ class TestConfigDhcpRelay(object):
         db.cfgdb = mock_cfgdb
         test_ips = IP_VER_TEST_PARAM_MAP[ip_version]["ips"]
         config_db_table = IP_VER_TEST_PARAM_MAP[ip_version]["table"]
+        call_count = IP_VER_TEST_PARAM_MAP[ip_version]["call_count"]
 
         with mock.patch("utilities_common.cli.run_command") as mock_run_command:
             # add new dhcp relay
@@ -239,10 +253,12 @@ class TestConfigDhcpRelay(object):
             print(result.exit_code)
             print(result.output)
             assert result.exit_code == 0
-            assert result.output == config_dhcp_relay_add_output.format(",".join(test_ips))
+            exp_output = config_dhcp_relay_ipv6_add_output if ip_version == "ipv6" \
+                else config_dhcp_relay_ipv4_add_output
+            assert result.output == exp_output.format(",".join(test_ips))
             assert db.cfgdb.get_entry(config_db_table, "Vlan1000") \
                 == expected_dhcp_relay_add_multi_config_db_output[ip_version]
-            assert mock_run_command.call_count == 3
+            assert mock_run_command.call_count == call_count
             db.cfgdb.set_entry.assert_called_once_with(config_db_table, "Vlan1000",
                                                        expected_dhcp_relay_add_multi_config_db_output[ip_version])
 
@@ -255,11 +271,13 @@ class TestConfigDhcpRelay(object):
             print(result.exit_code)
             print(result.output)
             assert result.exit_code == 0
-            assert result.output == config_dhcp_relay_del_output.format(",".join(test_ips))
-            assert mock_run_command.call_count == 3
+            exp_output = config_dhcp_relay_ipv6_del_output if ip_version == "ipv6" \
+                else config_dhcp_relay_ipv4_del_output
+            assert result.output == exp_output.format(",".join(test_ips))
+            assert mock_run_command.call_count == call_count
             assert db.cfgdb.get_entry(config_db_table, "Vlan1000") \
                 == expected_dhcp_relay_del_config_db_output[ip_version]
-            db.cfgdb.set_entry.assert_called_once_with(config_db_table, "Vlan1000",
+            db.cfgdb.mod_entry.assert_called_once_with(config_db_table, "Vlan1000",
                                                        expected_dhcp_relay_del_config_db_output[ip_version])
 
     def test_config_add_del_duplicate_dhcp_relay(self, mock_cfgdb, ip_version, op):

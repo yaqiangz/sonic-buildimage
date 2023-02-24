@@ -73,10 +73,11 @@ def add_dhcp_relay(vid, dhcp_relay_ips, db, ip_version):
 
     db.cfgdb.set_entry(table_name, vlan_name, table)
     click.echo("Added DHCP relay address [{}] to {}".format(",".join(dhcp_relay_ips), vlan_name))
-    try:
-        restart_dhcp_relay_service()
-    except SystemExit as e:
-        ctx.fail("Restart service dhcp_relay failed with error {}".format(e))
+    if ip_version == 6:
+        try:
+            restart_dhcp_relay_service()
+        except SystemExit as e:
+            ctx.fail("Restart service dhcp_relay failed with error {}".format(e))
 
 
 def del_dhcp_relay(vid, dhcp_relay_ips, db, ip_version):
@@ -108,12 +109,13 @@ def del_dhcp_relay(vid, dhcp_relay_ips, db, ip_version):
     if ip_version == 6 and len(table.keys()) == 0:
         table = None
 
-    db.cfgdb.set_entry(table_name, vlan_name, table)
+    db.cfgdb.mod_entry(table_name, vlan_name, table)
     click.echo("Removed DHCP relay address [{}] from {}".format(",".join(dhcp_relay_ips), vlan_name))
-    try:
-        restart_dhcp_relay_service()
-    except SystemExit as e:
-        ctx.fail("Restart service dhcp_relay failed with error {}".format(e))
+    if ip_version == 6:
+        try:
+            restart_dhcp_relay_service()
+        except SystemExit as e:
+            ctx.fail("Restart service dhcp_relay failed with error {}".format(e))
 
 
 @click.group(cls=clicommon.AbbreviationGroup, name="dhcp_relay")
