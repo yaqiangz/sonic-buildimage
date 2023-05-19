@@ -277,7 +277,7 @@ endif
 DOCKER_LOCKFILE_SAVE := $(DOCKER_LOCKDIR)/docker_save.lock
 $(shell mkdir -m 0777 -p $(DOCKER_LOCKDIR))
 $(shell [ -f $(DOCKER_LOCKFILE_SAVE) ] || (touch $(DOCKER_LOCKFILE_SAVE) && chmod 0777 $(DOCKER_LOCKFILE_SAVE)))
-$(docker run --rm -v $(DOCKER_ROOT)\:/mount alpine sh -c 'rm -rf /mount/')
+$(shell [ -d $(DOCKER_ROOT) ] && docker run --rm -v $(DOCKER_ROOT)\:/mount debian sh -c 'rm -rf /mount/*')
 $(mkdir -p $(DOCKER_ROOT))
 
 ifeq ($(DOCKER_BUILDER_MOUNT),)
@@ -545,6 +545,7 @@ SONIC_BUILD_INSTRUCTION :=  $(MAKE) \
                            SECURE_UPGRADE_DEV_SIGNING_KEY=$(SECURE_UPGRADE_DEV_SIGNING_KEY) \
                            SECURE_UPGRADE_SIGNING_CERT=$(SECURE_UPGRADE_SIGNING_CERT) \
                            SECURE_UPGRADE_PROD_SIGNING_TOOL=$(SECURE_UPGRADE_PROD_SIGNING_TOOL) \
+                           SECURE_UPGRADE_PROD_TOOL_ARGS=$(SECURE_UPGRADE_PROD_TOOL_ARGS) \
                            SONIC_DEFAULT_CONTAINER_REGISTRY=$(DEFAULT_CONTAINER_REGISTRY) \
                            ENABLE_HOST_SERVICE_ON_START=$(ENABLE_HOST_SERVICE_ON_START) \
                            SLAVE_DIR=$(SLAVE_DIR) \
