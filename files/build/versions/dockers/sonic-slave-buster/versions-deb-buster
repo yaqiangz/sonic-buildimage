@@ -103,6 +103,7 @@ dpatch==2.0.38+nmu1
 dpkg-dev==1.19.8
 dput==1.0.3
 dvipng==1.15-1.1
+dwarves==1.12-2
 dwz==0.13-5~bpo10+1
 eatmydata==105-7
 emacsen-common==3.0.4
