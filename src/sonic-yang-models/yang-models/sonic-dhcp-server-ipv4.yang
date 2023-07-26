@@ -175,12 +175,12 @@ module sonic-dhcp-server-ipv4 {
                     }
                 }
 
-                leaf-list ranges {
+                leaf-list range {
                     description "Range of IPs";
                     type inet:ipv4-address;
                 }
 
-                must "((count(ranges) <= 2) and (count(ranges) >= 1))";
+                must "((count(range) <= 2) and (count(range) >= 1))";
             }
             /* end of DHCP_SERVER_IPV4_RANGE_LIST */
         }
@@ -215,8 +215,8 @@ module sonic-dhcp-server-ipv4 {
 					}
 				}
 
-                leaf ip {
-                    description "Assigned IP";
+                leaf-list ips {
+                    description "Assigned IPs";
                     must "(not(boolean(../ranges)))"{
                         error-message "Statement of 'ip' and 'ranges' cannot both exist";
                     }

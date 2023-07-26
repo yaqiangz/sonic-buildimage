@@ -65,7 +65,7 @@
                 "DHCP_SERVER_IPV4_RANGE_LIST": [
                     {
                         "name": "range1",
-                        "ranges": [
+                        "range": [
                             "192.168.0.2",
                             "192.168.0.3"
                         ]
@@ -84,7 +84,9 @@
                     {
                         "vlan": "Vlan1000",
                         "port": "PortChannel1",
-                        "ip": "192.168.0.4"
+                        "ips": [
+                            "192.168.0.4"
+                        ]
                     }
                 ]
             }
@@ -255,7 +257,7 @@
                 "DHCP_SERVER_IPV4_RANGE_LIST": [
                     {
                         "name": "range1",
-                        "ranges": [
+                        "range": [
                             "192.168.0.2",
                             "192.168.0.300"
                         ]
@@ -295,7 +297,7 @@
                 "DHCP_SERVER_IPV4_RANGE_LIST": [
                     {
                         "name": "range1",
-                        "ranges": [
+                        "range": [
                             "192.168.0.2",
                             "192.168.0.3"
                         ]
@@ -310,7 +312,9 @@
                         "ranges": [
                             "range1"
                         ],
-                        "ip": "192.168.0.4"
+                        "ips": [
+                            "192.168.0.4"
+                        ]
                     }
                 ]
             }
@@ -380,7 +384,7 @@
                 "DHCP_SERVER_IPV4_RANGE_LIST": [
                     {
                         "name": "range1",
-                        "ranges": [
+                        "range": [
                             "192.168.0.2",
                             "192.168.0.3"
                         ]
@@ -399,7 +403,9 @@
                     {
                         "vlan": "Vlan1000",
                         "port": "PortChannel1",
-                        "ip": "192.168.0.4"
+                        "ips": [
+                            "192.168.0.4"
+                        ]
                     }
                 ]
             }
@@ -469,7 +475,7 @@
                 "DHCP_SERVER_IPV4_RANGE_LIST": [
                     {
                         "name": "range1",
-                        "ranges": [
+                        "range": [
                             "192.168.0.2",
                             "192.168.0.3"
                         ]
@@ -488,7 +494,9 @@
                     {
                         "vlan": "Vlan1000",
                         "port": "PortChannel1",
-                        "ip": "192.168.0.4"
+                        "ips": [
+                            "192.168.0.4"
+                        ]
                     }
                 ]
             }
@@ -558,7 +566,7 @@
                 "DHCP_SERVER_IPV4_RANGE_LIST": [
                     {
                         "name": "range1",
-                        "ranges": [
+                        "range": [
                             "192.168.0.2",
                             "192.168.0.3"
                         ]
@@ -577,7 +585,9 @@
                     {
                         "vlan": "Vlan1000",
                         "port": "PortChannel1",
-                        "ip": "192.168.0.4"
+                        "ips": [
+                            "192.168.0.4"
+                        ]
                     }
                 ]
             }
@@ -647,7 +657,7 @@
                 "DHCP_SERVER_IPV4_RANGE_LIST": [
                     {
                         "name": "range1",
-                        "ranges": [
+                        "range": [
                             "192.168.0.2",
                             "192.168.0.3"
                         ]
@@ -666,7 +676,9 @@
                     {
                         "vlan": "Vlan1000",
                         "port": "PortChannel1",
-                        "ip": "192.168.0.4"
+                        "ips": [
+                            "192.168.0.4"
+                        ]
                     }
                 ]
             }
@@ -736,7 +748,7 @@
                 "DHCP_SERVER_IPV4_RANGE_LIST": [
                     {
                         "name": "range1",
-                        "ranges": [
+                        "range": [
                             "192.168.0.2",
                             "192.168.0.3"
                         ]
@@ -755,7 +767,9 @@
                     {
                         "vlan": "Vlan1000",
                         "port": "PortChannel1",
-                        "ip": "192.168.0.4"
+                        "ips": [
+                            "192.168.0.4"
+                        ]
                     }
                 ]
             }
@@ -817,7 +831,7 @@
                 "DHCP_SERVER_IPV4_RANGE_LIST": [
                     {
                         "name": "range1",
-                        "ranges": [
+                        "range": [
                             "192.168.0.2"
                         ]
                     }
@@ -831,7 +845,7 @@
                 "DHCP_SERVER_IPV4_RANGE_LIST": [
                     {
                         "name": "range1",
-                        "ranges": [
+                        "range": [
                             "192.168.0.2",
                             "192.168.0.3",
                             "192.168.0.4"
