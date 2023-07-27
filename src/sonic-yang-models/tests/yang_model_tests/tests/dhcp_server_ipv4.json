@@ -59,10 +59,6 @@
         "desc": "Missing id in DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS",
         "eStrKey" : "Mandatory"
     },
-    "DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS_TYPE_ABSENT": {
-        "desc": "Missing type in DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS",
-        "eStrKey" : "Mandatory"
-    },
     "DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS_VALUE_ABSENT": {
         "desc": "Missing value in DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS",
         "eStrKey" : "Mandatory"
