@@ -1,0 +1,66 @@
+{% from "dockers/dockerfile-macros.j2" import install_debian_packages, install_python_wheels, copy_files %}
+FROM docker-config-engine-bullseye-{{DOCKER_USERNAME}}:{{DOCKER_USERTAG}}
+
+ARG docker_container_name
+
+## Make apt-get non-interactive
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update &&       \
+    apt-get install -f -y   \
+# For kea build environment
+        automake            \
+        libtool             \
+        pkg-config          \
+        build-essential     \
+        ccache              \
+# For kea dependancies
+        libboost-dev        \
+        libboost-system-dev \
+        liblog4cplus-dev    \
+        libssl-dev
+
+RUN apt-get install -f -y devscripts
+RUN mkdir kea && cd kea && dget -u http://deb.debian.org/debian/pool/main/i/isc-kea/isc-kea_2.2.0-8.dsc
+# RUN export PKG_CONFIG_PATH=/usr/local/lib64/pkgconfig
+RUN cd /kea/isc-kea-2.2.0 && autoreconf --install && ./configure --disable-FEATURE \
+    --enable-static=no --disable-install-configurations --enable-pgsql-ssl=no --with-PACKAGE=no \
+    && make -j$(nproc) && make install
+RUN mkdir -p /run/kea
+RUN cd /usr/local/lib && rm -v *.la && rm -v kea/hooks/*.la
+Run find /usr/local/sbin/ /usr/local/lib/ -type f -exec strip --strip-unneeded {} \;
+RUN rm -rf /kea
+# RUN mkdir -p /opt/kea && mkdir -p /usr/local/var/log/kea && mkdir -p /usr/local/var/lib/kea && \
+#     mkdir -p /usr/local/var/run/kea
+RUN echo "/usr/local/lib/kea/hooks" > /etc/ld.so.conf.d/kea.conf && \
+    ldconfig
+RUN cd /usr/local/sbin && rm -f kea-admin kea-ctrl-agent kea-dhcp-ddns kea-dhcp6 keactrl
+RUN cd /usr/local/lib/kea/hooks && rm -f libdhcp_bootp.so libdhcp_flex_option.so libdhcp_stat_cmds.so
+
+{% if docker_dhcp_server_debs.strip() -%}
+# Copy locally-built Debian package dependencies
+{{ copy_files("debs/", docker_dhcp_server_debs.split(' '), "/debs/") }}
+
+# Install locally-built Debian packages and implicitly install their dependencies
+{{ install_debian_packages(docker_dhcp_server_debs.split(' ')) }}
+{%- endif %}
+
+RUN apt-get remove -y devscripts    \
+                automake            \
+                libtool             \
+                pkg-config          \
+                build-essential     \
+                ccache
+
+        ## Clean up
+RUN apt-get clean -y        && \
+    apt-get autoclean -y    && \
+    apt-get autoremove -y   && \
+    rm -rf /debs
+
+COPY ["docker_init.sh", "/usr/bin/"]
+COPY ["supervisord.conf", "/etc/supervisor/conf.d/"]
+COPY ["files/supervisor-proc-exit-listener", "/usr/bin"]
+COPY ["critical_processes", "/etc/supervisor/"]
+
+# ENTRYPOINT ["/usr/bin/docker_init.sh"]
