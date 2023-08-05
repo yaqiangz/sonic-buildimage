@@ -54,5 +54,6 @@ COPY ["docker_init.sh", "/usr/bin/"]
 COPY ["supervisord.conf", "/etc/supervisor/conf.d/"]
 COPY ["files/supervisor-proc-exit-listener", "/usr/bin"]
 COPY ["critical_processes", "/etc/supervisor/"]
+COPY ["cli", "/cli/"]
 
 # ENTRYPOINT ["/usr/bin/docker_init.sh"]
