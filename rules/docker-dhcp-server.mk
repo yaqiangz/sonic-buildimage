@@ -48,4 +48,7 @@ $(DOCKER_DHCP_SERVER)_CONTAINER_VOLUMES += /var/run/redis:/redis_sock:ro
 $(DOCKER_DHCP_SERVER)_CONTAINER_TMPFS += /tmp/
 $(DOCKER_DHCP_SERVER)_CONTAINER_TMPFS += /var/tmp/
 
+$(DOCKER_DHCP_SERVER)_CLI_CONFIG_PLUGIN = /cli/config/plugins/dhcp_server.py
+$(DOCKER_DHCP_SERVER)_CLI_SHOW_PLUGIN = /cli/show/plugins/show_dhcp_server.py
+
 $(DOCKER_DHCP_SERVER)_FILES += $(SUPERVISOR_PROC_EXIT_LISTENER_SCRIPT)
