@@ -23,21 +23,25 @@ RUN apt-get update &&       \
         liblog4cplus-dev    \
         libssl-dev
 
+# Install kea from source
 RUN apt-get install -f -y devscripts
 RUN mkdir kea && cd kea && dget -u http://deb.debian.org/debian/pool/main/i/isc-kea/isc-kea_2.2.0-8.dsc
-# RUN export PKG_CONFIG_PATH=/usr/local/lib64/pkgconfig
 RUN cd /kea/isc-kea-2.2.0 && autoreconf --install && ./configure --disable-FEATURE \
     --enable-static=no --disable-install-configurations --enable-pgsql-ssl=no --with-PACKAGE=no \
     && make -j$(nproc) && make install
+# Create run folder for kea
 RUN mkdir -p /run/kea
+# Remove stuff we don't need to reduce image size
 RUN cd /usr/local/lib && rm -v *.la && rm -v kea/hooks/*.la
+# Strip debug symbols to reduce file size of binaries
 Run find /usr/local/sbin/ /usr/local/lib/ -type f -exec strip --strip-unneeded {} \;
+# Remove source code
 RUN rm -rf /kea
-# RUN mkdir -p /opt/kea && mkdir -p /usr/local/var/log/kea && mkdir -p /usr/local/var/lib/kea && \
-#     mkdir -p /usr/local/var/run/kea
 RUN echo "/usr/local/lib/kea/hooks" > /etc/ld.so.conf.d/kea.conf && \
     ldconfig
+# Remove sbin we don't need
 RUN cd /usr/local/sbin && rm -f kea-admin kea-ctrl-agent kea-dhcp-ddns kea-dhcp6 keactrl
+# Remove hook lib we don't need
 RUN cd /usr/local/lib/kea/hooks && rm -f libdhcp_bootp.so libdhcp_flex_option.so libdhcp_stat_cmds.so
 
 {% if docker_dhcp_server_debs.strip() -%}
@@ -48,6 +52,7 @@ RUN cd /usr/local/lib/kea/hooks && rm -f libdhcp_bootp.so libdhcp_flex_option.so
 {{ install_debian_packages(docker_dhcp_server_debs.split(' ')) }}
 {%- endif %}
 
+# Remove build stuff we don't need
 RUN apt-get remove -y devscripts    \
                 automake            \
                 libtool             \
@@ -55,7 +60,6 @@ RUN apt-get remove -y devscripts    \
                 build-essential     \
                 ccache
 
-        ## Clean up
 RUN apt-get clean -y        && \
     apt-get autoclean -y    && \
     apt-get autoremove -y   && \
