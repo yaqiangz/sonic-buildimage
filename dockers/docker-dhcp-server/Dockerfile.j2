@@ -6,6 +6,9 @@ ARG docker_container_name
 ## Make apt-get non-interactive
 ENV DEBIAN_FRONTEND=noninteractive
 
+# Pass the image_version to container
+ENV IMAGE_VERSION=$image_version
+
 RUN apt-get update &&       \
     apt-get install -f -y   \
 # For kea build environment
