@@ -46,6 +46,10 @@ VLAN_SUB_INTERFACE_VLAN_ID = '10'
 
 FRONTEND_ASIC_SUB_ROLE = 'FrontEnd'
 BACKEND_ASIC_SUB_ROLE = 'BackEnd'
+DEFAULT_DHCP_SERVER_LEASE_TIME = 900
+DEFAULT_DHCP_SERVER_MODE = "PORT"
+RACK_MGMT_MAP = "rack_mgmt_map"
+DHCP_SERVER_IP = "240.127.1.2"
 
 dualtor_cable_types = ["active-active", "active-standby"]
 
@@ -219,6 +223,7 @@ def parse_png(png, hname, dpg_ecmp_content = None):
     mux_cable_ports = {}
     port_device_map = {}
     png_ecmp_content = {}
+    link_ports = {}
     FG_NHG_MEMBER = {}
     FG_NHG = {}
     NEIGH = {}
@@ -262,6 +267,10 @@ def parse_png(png, hname, dpg_ecmp_content = None):
                 startport = link.find(str(QName(ns, "StartPort"))).text
                 bandwidth_node = link.find(str(QName(ns, "Bandwidth")))
                 bandwidth = bandwidth_node.text if bandwidth_node is not None else None
+                if linktype == "DeviceMgmtLink":
+                    link_device = enddevice if startdevice.lower() == hname.lower() else startdevice
+                    link_port = startport if startdevice.lower() == hname.lower() else endport
+                    link_ports[link_port] = link_device
                 if enddevice.lower() == hname.lower():
                     if endport in port_alias_map:
                         endport = port_alias_map[endport]
@@ -338,7 +347,7 @@ def parse_png(png, hname, dpg_ecmp_content = None):
 
             png_ecmp_content = {"FG_NHG_MEMBER": FG_NHG_MEMBER, "FG_NHG": FG_NHG, "NEIGH": NEIGH}
 
-    return (neighbors, devices, console_dev, console_port, mgmt_dev, mgmt_port, port_speeds, console_ports, mux_cable_ports, png_ecmp_content)
+    return (neighbors, devices, console_dev, console_port, mgmt_dev, mgmt_port, port_speeds, console_ports, mux_cable_ports, png_ecmp_content, link_ports)
 
 
 def parse_asic_external_link(link, asic_name, hostname):
@@ -1441,6 +1450,57 @@ def select_mmu_profiles(profile, platform, hwsku):
                 base_file = os.path.join(path, file_item)
                 exec_cmd(["sudo", "cp", file_in_dir, base_file])
 
+
+def generate_ipv4_dhcp_server_config(devices, link_ports, port_alias_map, vlan_intfs, vlan_members, rack_mgmt_map):
+    dhcp_server_ipv4 = {}
+    dhcp_server_ipv4_port = {}
+    dhcp_server_ipv4_customized_options = {}
+
+    if rack_mgmt_map is not None:
+        dhcp_server_ipv4_customized_options = {
+            RACK_MGMT_MAP: {
+                "id": 223,
+                "type": "text",
+                "value": rack_mgmt_map
+            }
+        }
+
+    alias_port_map = dict((v, k) for k, v in port_alias_map.items())
+    for vlan_intf in list(vlan_intfs.keys()):
+        if not isinstance(vlan_intf, tuple):
+            continue
+
+        vlan_name = vlan_intf[0]
+        vlan_intf_str = vlan_intf[1]
+        vlan_network = ipaddress.ip_network(UNICODE_TYPE(vlan_intf_str), False)
+        if vlan_network.version != 4:
+            continue
+        dhcp_server_ipv4[vlan_name] = {
+            "gateway": vlan_intf_str.split("/")[0],
+            "lease_time": DEFAULT_DHCP_SERVER_LEASE_TIME,
+            "mode": DEFAULT_DHCP_SERVER_MODE,
+            "netmask": str(vlan_network.netmask),
+            "state": "enabled"
+        }
+        if rack_mgmt_map is not None:
+            dhcp_server_ipv4[vlan_name]["customized_options"] = [RACK_MGMT_MAP]
+
+    for vlan_member in list(vlan_members.keys()):
+        interface = vlan_member[1]
+        if interface not in alias_port_map or alias_port_map[interface] not in link_ports:
+            continue
+        neighbor_device = link_ports[alias_port_map[interface]]
+        if not neighbor_device.endswith("BMC"):
+            continue
+        mgmt_ip_str = devices[neighbor_device]["mgmt_addr"]
+        dhcp_server_ipv4_port[vlan_member] = {
+            "ips": [
+                mgmt_ip_str.split("/")[0]
+            ]
+        }
+    return dhcp_server_ipv4, dhcp_server_ipv4_port, dhcp_server_ipv4_customized_options
+
+
 ###############################################################################
 #
 # Main functions
@@ -1521,6 +1581,9 @@ def parse_xml(filename, platform=None, port_config_file=None, asic_name=None, hw
     redundancy_type = None
     qos_profile = None
     rack_mgmt_map = None
+    dhcp_server_ipv4 = None
+    dhcp_server_ipv4_port = None
+    dhcp_server_ipv4_customized_options = None
 
     hwsku_qn = QName(ns, "HwSku")
     hostname_qn = QName(ns, "Hostname")
@@ -1549,9 +1612,9 @@ def parse_xml(filename, platform=None, port_config_file=None, asic_name=None, hw
             elif child.tag == str(QName(ns, "CpgDec")):
                 (bgp_sessions, bgp_internal_sessions, bgp_voq_chassis_sessions, bgp_asn, bgp_peers_with_range, bgp_monitors, bgp_sentinel_sessions) = parse_cpg(child, hostname)
             elif child.tag == str(QName(ns, "PngDec")):
-                (neighbors, devices, console_dev, console_port, mgmt_dev, mgmt_port, port_speed_png, console_ports, mux_cable_ports, png_ecmp_content) = parse_png(child, hostname, dpg_ecmp_content)
+                (neighbors, devices, console_dev, console_port, mgmt_dev, mgmt_port, port_speed_png, console_ports, mux_cable_ports, png_ecmp_content, link_ports) = parse_png(child, hostname, dpg_ecmp_content)
             elif child.tag == str(QName(ns, "UngDec")):
-                (u_neighbors, u_devices, _, _, _, _, _, _) = parse_png(child, hostname, None)
+                (u_neighbors, u_devices, _, _, _, _, _, _, _) = parse_png(child, hostname, None)
             elif child.tag == str(QName(ns, "MetadataDeclaration")):
                 (syslog_servers, dhcp_servers, dhcpv6_servers, ntp_servers, tacacs_servers, mgmt_routes, erspan_dst, deployment_id, region, cloudtype, resource_type, downstream_subrole, switch_id, switch_type, max_cores, kube_data, macsec_profile, downstream_redundancy_types, redundancy_type, qos_profile, rack_mgmt_map) = parse_meta(child, hostname)
             elif child.tag == str(QName(ns, "LinkMetadataDeclaration")):
@@ -2010,7 +2073,9 @@ def parse_xml(filename, platform=None, port_config_file=None, asic_name=None, hw
     else:
         results['DEVICE_NEIGHBOR_METADATA'] = { key:devices[key] for key in devices if key in {device['name'] for device in neighbors.values()} }
     results['SYSLOG_SERVER'] = dict((item, {}) for item in syslog_servers)
-    results['DHCP_SERVER'] = dict((item, {}) for item in dhcp_servers)
+    # For BmcMgmtToRRouter, treat docker ip as new dhcp_server
+    results['DHCP_SERVER'] = dict((item, {}) for item in dhcp_servers) \
+        if devices[hostname]["type"] != "BmcMgmtToRRouter" else {DHCP_SERVER_IP: {}}
     results['DHCP_RELAY'] = dhcp_relay_table
     results['NTP_SERVER'] = dict((item, {}) for item in ntp_servers)
     # Set default DNS nameserver from dns.j2
@@ -2068,6 +2133,18 @@ def parse_xml(filename, platform=None, port_config_file=None, asic_name=None, hw
             'client_crt_cname': 'client.restapi.sonic'
         }
     }
+    if devices[hostname]["type"] == "BmcMgmtToRRouter":
+        dhcp_server_ipv4, dhcp_server_ipv4_port, dhcp_server_ipv4_customized_options = \
+            generate_ipv4_dhcp_server_config(devices, link_ports, port_alias_map, vlan_intfs, vlan_members,
+                                             rack_mgmt_map)
+        for vlan_name, _ in results["VLAN"].items():
+            # For BmcMgmtToRRouter, treat docker ip as new dhcp_server
+            results["VLAN"][vlan_name]["dhcp_servers"] = [DHCP_SERVER_IP]
+        if dhcp_server_ipv4 is not None:
+            results['DHCP_SERVER_IPV4'] = dhcp_server_ipv4
+            if dhcp_server_ipv4_customized_options:
+                results['DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS'] = dhcp_server_ipv4_customized_options
+            results['DHCP_SERVER_IPV4_PORT'] = dhcp_server_ipv4_port
 
     if len(png_ecmp_content):
         results['FG_NHG_MEMBER'] = png_ecmp_content['FG_NHG_MEMBER']

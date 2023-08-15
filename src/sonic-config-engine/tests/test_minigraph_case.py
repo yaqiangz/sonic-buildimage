@@ -23,7 +23,9 @@ class TestCfgGenCaseInsensitive(TestCase):
         self.sample_subintf_graph = os.path.join(self.test_dir, 'sample-graph-subintf.xml')
         self.sample_simple_device_desc = os.path.join(self.test_dir, 'simple-sample-device-desc.xml')
         self.sample_simple_device_desc_ipv6_only = os.path.join(self.test_dir, 'simple-sample-device-desc-ipv6-only.xml')
+        self.sample_graph_7215_mx = os.path.join(self.test_dir, 'simple-sample-graph-7215-mx.xml')
         self.port_config = os.path.join(self.test_dir, 't0-sample-port-config.ini')
+        self.nokia_7215_port_config = os.path.join(self.test_dir, 'sample-nokia-7215-port-config.ini')
 
     def run_script(self, argument, check_stderr=False):
         print('\n    Running sonic-cfggen ' + ' '.join(argument))
@@ -197,6 +199,54 @@ class TestCfgGenCaseInsensitive(TestCase):
         argument = ['-m', self.sample_graph, '-p', self.port_config, '-v', "DEVICE_METADATA[\'localhost\'][\'rack_mgmt_map\']"]
         output = self.run_script(argument)
         self.assertEqual(output.strip(), "dummy_value")
+
+    def test_dhcp_server_ipv4(self):
+        argument = ['-m', self.sample_graph_7215_mx, '-p', self.nokia_7215_port_config, '-v', 'DHCP_SERVER_IPV4']
+        output = self.run_script(argument)
+        expected_table_str = "{'Vlan1000': {'gateway': '192.168.0.1', 'lease_time': 900, 'customized_options': " + \
+                             "['rack_mgmt_map'], 'mode': 'PORT', 'netmask': '255.255.255.0', 'state': 'enabled'}}"
+        self.assertEqual(utils.to_dict(output.strip()), utils.to_dict(expected_table_str))
+
+    def test_dhcp_server_ipv4_port(self):
+        argument = ['-m', self.sample_graph_7215_mx, '-p', self.nokia_7215_port_config, '-v', 'DHCP_SERVER_IPV4_PORT']
+        output = self.run_script(argument)
+        expected_table = {
+            'Vlan1000|Ethernet0': {
+                'ips': ['192.168.0.2']
+            },
+            'Vlan1000|Ethernet1': {
+                'ips': ['192.168.0.3']
+            }
+        }
+        self.assertEqual(utils.to_dict(output.strip()), expected_table)
+
+    def test_mx_dhcp_server_table(self):
+        argument = ['-m', self.sample_graph_7215_mx, '-p', self.nokia_7215_port_config, '-v', 'DHCP_SERVER']
+        output = self.run_script(argument)
+        expected_table = {
+            "240.127.1.2": {}
+        }
+        self.assertEqual(utils.to_dict(output.strip()), expected_table)
+
+    def test_mx_dhcp_servers(self):
+        argument = ['-m', self.sample_graph_7215_mx, '-p', self.nokia_7215_port_config, '-v', 'VLAN']
+        output = self.run_script(argument)
+        expected_table_str = "{'Vlan1000': {'vlanid': '1000', 'dhcp_servers': ['240.127.1.2'], 'dhcpv6_servers': " + \
+            "['fc02:2000::1', 'fc02:2000::2', 'fc02:2000::3', 'fc02:2000::4']}}"
+        self.assertEqual(utils.to_dict(output.strip()), utils.to_dict(expected_table_str))
+
+    def test_dhcp_server_ipv4_customized_options(self):
+        argument = ['-m', self.sample_graph_7215_mx, '-p', self.nokia_7215_port_config, '-v',
+                    'DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS']
+        output = self.run_script(argument)
+        expected_table = {
+            'rack_mgmt_map': {
+                'id': 223,
+                'type': 'text',
+                'value': 'dummy_value'
+            }
+        }
+        self.assertEqual(utils.to_dict(output.strip()), expected_table)
 
     def test_minigraph_cluster(self):
         argument = ['-m', self.sample_graph, '-p', self.port_config, '-v', "DEVICE_METADATA[\'localhost\'][\'cluster\']"]
