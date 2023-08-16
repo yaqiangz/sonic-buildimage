@@ -9,7 +9,8 @@ def dhcp_server():
 
 
 def register(cli):
-    cli.add_command(dhcp_server)
+    # cli.add_command(dhcp_server)
+    pass
 
 
 if __name__ == '__main__':
