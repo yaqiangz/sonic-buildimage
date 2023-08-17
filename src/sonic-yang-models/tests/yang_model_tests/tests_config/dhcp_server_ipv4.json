@@ -237,6 +237,76 @@
             }
         }
     },
+    "DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS_TYPE_VALID_VALUE_TEXT": {
+        "sonic-dhcp-server-ipv4:sonic-dhcp-server-ipv4": {
+            "sonic-dhcp-server-ipv4:DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS": {
+                "DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS_LIST": [
+                    {
+                        "name": "option60",
+                        "id": 60,
+                        "type": "text",
+                        "value": "dummy_value"
+                    }
+                ]
+            }
+        }
+    },
+    "DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS_TYPE_VALID_VALUE_IPV4_ADDRESS": {
+        "sonic-dhcp-server-ipv4:sonic-dhcp-server-ipv4": {
+            "sonic-dhcp-server-ipv4:DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS": {
+                "DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS_LIST": [
+                    {
+                        "name": "option60",
+                        "id": 60,
+                        "type": "ipv4-address",
+                        "value": "dummy_value"
+                    }
+                ]
+            }
+        }
+    },
+    "DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS_TYPE_VALID_VALUE_UINT8": {
+        "sonic-dhcp-server-ipv4:sonic-dhcp-server-ipv4": {
+            "sonic-dhcp-server-ipv4:DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS": {
+                "DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS_LIST": [
+                    {
+                        "name": "option60",
+                        "id": 60,
+                        "type": "uint8",
+                        "value": "dummy_value"
+                    }
+                ]
+            }
+        }
+    },
+    "DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS_TYPE_VALID_VALUE_UINT16": {
+        "sonic-dhcp-server-ipv4:sonic-dhcp-server-ipv4": {
+            "sonic-dhcp-server-ipv4:DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS": {
+                "DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS_LIST": [
+                    {
+                        "name": "option60",
+                        "id": 60,
+                        "type": "uint16",
+                        "value": "dummy_value"
+                    }
+                ]
+            }
+        }
+    },
+    "DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS_TYPE_VALID_VALUE_UINT32": {
+        "sonic-dhcp-server-ipv4:sonic-dhcp-server-ipv4": {
+            "sonic-dhcp-server-ipv4:DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS": {
+                "DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS_LIST": [
+                    {
+                        "name": "option60",
+                        "id": 60,
+                        "type": "uint32",
+                        "value": "dummy_value"
+                    }
+                ]
+            }
+        }
+    },
     "DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS_TYPE_WRONG_VALUE": {
         "sonic-dhcp-server-ipv4:sonic-dhcp-server-ipv4": {
             "sonic-dhcp-server-ipv4:DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS": {

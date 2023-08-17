@@ -27,13 +27,28 @@
         "eStrKey": "InvalidValue",
         "eStr": ["type"]
     },
+    "DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS_TYPE_VALID_VALUE_TEXT": {
+        "desc": "Add text type of DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS."
+    },
+    "DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS_TYPE_VALID_VALUE_IPV4_ADDRESS": {
+        "desc": "Add ipv4-address type of DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS."
+    },
+    "DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS_TYPE_VALID_VALUE_UINT8": {
+        "desc": "Add uint8 type of DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS."
+    },
+    "DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS_TYPE_VALID_VALUE_UINT16": {
+        "desc": "Add uint16 type of DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS."
+    },
+    "DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS_TYPE_VALID_VALUE_UINT32": {
+        "desc": "Add uint32 type of DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS."
+    },
     "DHCP_SERVER_IPV4_RANGE_INVALID_END": {
         "desc": "Configure wrong end ip of range.",
         "eStrKey": "Pattern"
     },
     "DHCP_SERVER_IPV4_RANGE_RANGES_WITH_IP": {
         "desc": "Configure both ip and ranges in DHCP_SERVER_IPV4_RANGE_RANGES",
-        "eStr": ["Statement of 'ip' and 'ranges' cannot both exist"]
+        "eStr": ["Statement of 'ips' and 'ranges' cannot both exist"]
     },
     "DHCP_SERVER_IPV4_GATEWAY_ABSENT": {
         "desc": "Missing gateway in DHCP_SERVER_IPV4",

@@ -1018,7 +1018,9 @@ IPV4 DHPC Server related configuration are defined in **DHCP_SERVER_IPV4**, **DH
     },
     "DHCP_SERVER_IPV4_PORT": {
         "Vlan100|PortChannel0003": {
-            "ip": "100.1.1.10"
+            "ips": [
+                "100.1.1.10"
+            ]
         },
         "Vlan100|PortChannel2": {
             "ranges": [

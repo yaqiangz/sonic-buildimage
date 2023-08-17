@@ -10,6 +10,10 @@ module sonic-dhcp-server-ipv4 {
         prefix inet;
     }
 
+    import sonic-types {
+        prefix stypes;
+    }
+
     import sonic-vlan {
         prefix vlan;
     }
@@ -87,10 +91,7 @@ module sonic-dhcp-server-ipv4 {
                 leaf state {
                     description "State of DHCP server";
                     mandatory true;
-                    type enumeration {
-                        enum enabled;
-                        enum disabled;
-                    }
+                    type stypes:admin_mode;
                 }
             }
             /* end of DHCP_SERVER_IPV4_LIST */
@@ -196,34 +197,34 @@ module sonic-dhcp-server-ipv4 {
                 leaf vlan {
                     description "Name of vlan";
                     type leafref {
-						path "/vlan:sonic-vlan/vlan:VLAN/vlan:VLAN_LIST/vlan:name";
-					}
+                        path "/vlan:sonic-vlan/vlan:VLAN/vlan:VLAN_LIST/vlan:name";
+                    }
                 }
 
                 leaf port {
                     description "Interface under vlan";
-					type union {
-						type leafref {
-							path "/port:sonic-port/port:PORT/port:PORT_LIST/port:name";
-						}
-						type leafref {
-							path "/lag:sonic-portchannel/lag:PORTCHANNEL/lag:PORTCHANNEL_LIST/lag:name";
-						}
-					}
-				}
+                    type union {
+                        type leafref {
+                            path "/port:sonic-port/port:PORT/port:PORT_LIST/port:name";
+                        }
+                        type leafref {
+                            path "/lag:sonic-portchannel/lag:PORTCHANNEL/lag:PORTCHANNEL_LIST/lag:name";
+                        }
+                    }
+                }
 
                 leaf-list ips {
                     description "Assigned IPs";
                     must "(not(boolean(../ranges)))"{
-                        error-message "Statement of 'ip' and 'ranges' cannot both exist";
+                        error-message "Statement of 'ips' and 'ranges' cannot both exist";
                     }
                     type inet:ipv4-address;
                 }
 
                 leaf-list ranges {
                     description "IP ranges";
-                    must "(not(boolean(../ip)))"{
-                        error-message "Statement of 'ip' and 'ranges' cannot both exist";
+                    must "(not(boolean(../ips)))"{
+                        error-message "Statement of 'ips' and 'ranges' cannot both exist";
                     }
                     type leafref {
                         path "/dhcp-server-ipv4:sonic-dhcp-server-ipv4/dhcp-server-ipv4:DHCP_SERVER_IPV4_RANGE/dhcp-server-ipv4:DHCP_SERVER_IPV4_RANGE_LIST/dhcp-server-ipv4:name";
