@@ -198,6 +198,32 @@
             }
         }
     },
+    "DHCP_SERVER_IPV4_MODE_WRONG_VALUE": {
+        "sonic-vlan:sonic-vlan": {
+            "sonic-vlan:VLAN": {
+                "VLAN_LIST": [
+                    {
+                        "name": "Vlan1000",
+                        "vlanid": 1000
+                    }
+                ]
+            }
+        },
+        "sonic-dhcp-server-ipv4:sonic-dhcp-server-ipv4": {
+            "sonic-dhcp-server-ipv4:DHCP_SERVER_IPV4": {
+                "DHCP_SERVER_IPV4_LIST": [
+                    {
+                        "name": "Vlan1000",
+                        "gateway": "192.168.0.1",
+                        "lease_time": 3600,
+                        "mode": "pool",
+                        "netmask": "255.255.255.0",
+                        "state": "enabled"
+                    }
+                ]
+            }
+        }
+    },
     "DHCP_SREVER_IPV4_NON_EXIST_OPTION": {
         "sonic-vlan:sonic-vlan": {
             "sonic-vlan:VLAN": {

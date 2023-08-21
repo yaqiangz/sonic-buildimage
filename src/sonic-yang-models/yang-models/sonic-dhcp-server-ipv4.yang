@@ -67,11 +67,8 @@ module sonic-dhcp-server-ipv4 {
                 leaf mode {
                     description "Mode of assigning IP";
                     mandatory true;
-                    type string {
-                        pattern "PORT" {
-                            error-message "Invalid mode for DHCP server";
-                            error-app-tag dhcp-server-mode-invalid;
-                        }
+                    type enumeration {
+                        enum PORT;
                     }
                 }
 

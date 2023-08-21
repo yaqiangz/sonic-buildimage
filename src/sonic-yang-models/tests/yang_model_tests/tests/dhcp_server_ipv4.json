@@ -18,6 +18,10 @@
         "desc": "Configure wrong value for state.",
         "eStrKey": "InvalidValue"
     },
+    "DHCP_SERVER_IPV4_MODE_WRONG_VALUE": {
+        "desc": "Configure wrong value for mode.",
+        "eStrKey": "InvalidValue"
+    },
     "DHCP_SREVER_IPV4_NON_EXIST_OPTION": {
         "desc": "Configure option in DHCP_SERVER_IPV4 table which does not exist in DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS table.",
         "eStrKey": "LeafRef"
