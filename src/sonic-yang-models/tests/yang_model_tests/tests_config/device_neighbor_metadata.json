@@ -25,14 +25,14 @@
             }
         }
     },
-    "DEVICE_NEIGHBOR_METADATA_TYPE_INCORRECT_PATTERN_BMCS": {
+    "DEVICE_NEIGHBOR_METADATA_TYPE_INCORRECT_PATTERN_BMC": {
         "sonic-device_neighbor_metadata:sonic-device_neighbor_metadata": {
             "sonic-device_neighbor_metadata:DEVICE_NEIGHBOR_METADATA": {
                 "DEVICE_NEIGHBOR_METADATA_LIST": [
                     {
                         "name": "Ethernet116",
-                        "hwsku": "Arista",
-                        "type": "Bmcs"
+                        "hwsku": "DUMMY_BMC_SKU",
+                        "type": "IncorrectTypeBmc"
                     }
                 ]
             }
@@ -44,7 +44,7 @@
                 "DEVICE_NEIGHBOR_METADATA_LIST": [
                     {
                         "name": "Ethernet116",
-                        "hwsku": "Arista",
+                        "hwsku": "DUMMY_BMC_SKU",
                         "type": "Bmc"
                     }
                 ]
