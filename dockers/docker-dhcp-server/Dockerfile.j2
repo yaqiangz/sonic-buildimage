@@ -31,6 +31,8 @@ RUN cd /kea/isc-kea-2.2.0 && autoreconf --install && ./configure --disable-FEATU
     && make -j$(nproc) && make install
 # Create run folder for kea
 RUN mkdir -p /run/kea
+# Create config folder for kea
+RUN mkdir -p /etc/kea
 # Remove stuff we don't need to reduce image size
 RUN cd /usr/local/lib && rm -v *.la && rm -v kea/hooks/*.la
 # Strip debug symbols to reduce file size of binaries
