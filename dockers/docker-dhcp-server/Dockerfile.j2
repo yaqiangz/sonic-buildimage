@@ -11,6 +11,7 @@ ENV IMAGE_VERSION=$image_version
 
 RUN apt-get update &&       \
     apt-get install -f -y   \
+        tcpdump             \
 # For kea build environment
         automake            \
         libtool             \
@@ -25,7 +26,7 @@ RUN apt-get update &&       \
 
 # Install kea from source
 RUN apt-get install -f -y devscripts
-RUN mkdir kea && cd kea && dget -u http://deb.debian.org/debian/pool/main/i/isc-kea/isc-kea_2.2.0-8.dsc
+RUN mkdir kea && cd kea && dget -u http://deb.debian.org/debian/pool/main/i/isc-kea/isc-kea_2.2.0-6.dsc
 RUN cd /kea/isc-kea-2.2.0 && autoreconf --install && ./configure --disable-FEATURE \
     --enable-static=no --disable-install-configurations --enable-pgsql-ssl=no --with-PACKAGE=no \
     && make -j$(nproc) && make install
