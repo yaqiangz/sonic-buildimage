@@ -268,6 +268,7 @@ def parse_png(png, hname, dpg_ecmp_content = None):
                 bandwidth_node = link.find(str(QName(ns, "Bandwidth")))
                 bandwidth = bandwidth_node.text if bandwidth_node is not None else None
                 if linktype == "DeviceMgmtLink":
+                    # To get port - device map
                     link_device = enddevice if startdevice.lower() == hname.lower() else startdevice
                     link_port = startport if startdevice.lower() == hname.lower() else endport
                     link_ports[link_port] = link_device
@@ -1452,10 +1453,14 @@ def select_mmu_profiles(profile, platform, hwsku):
 
 
 def generate_ipv4_dhcp_server_config(devices, link_ports, port_alias_map, vlan_intfs, vlan_members, rack_mgmt_map):
+    """
+        Generate IPv4 DHCP Server related config
+    """
     dhcp_server_ipv4 = {}
     dhcp_server_ipv4_port = {}
     dhcp_server_ipv4_customized_options = {}
 
+    # Use option 223 in DHCP packet to send rack_mgmt_map
     if rack_mgmt_map is not None:
         dhcp_server_ipv4_customized_options = {
             RACK_MGMT_MAP: {
@@ -1466,6 +1471,7 @@ def generate_ipv4_dhcp_server_config(devices, link_ports, port_alias_map, vlan_i
         }
 
     alias_port_map = dict((v, k) for k, v in port_alias_map.items())
+    # Generate DHCP_SERVER_IPV4 part
     for vlan_intf in list(vlan_intfs.keys()):
         if not isinstance(vlan_intf, tuple):
             continue
@@ -1485,6 +1491,7 @@ def generate_ipv4_dhcp_server_config(devices, link_ports, port_alias_map, vlan_i
         if rack_mgmt_map is not None:
             dhcp_server_ipv4[vlan_name]["customized_options"] = [RACK_MGMT_MAP]
 
+    # Generate DHCP_SERVER_IPV4_PORT part
     for vlan_member in list(vlan_members.keys()):
         interface = vlan_member[1]
         if interface not in alias_port_map or alias_port_map[interface] not in link_ports:
