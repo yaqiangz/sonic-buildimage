@@ -14,9 +14,10 @@ module sonic-dhcp-server-ipv4 {
         prefix stypes;
     }
 
-    import sonic-vlan {
-        prefix vlan;
-    }
+    // Comment sonic-vlan import here until libyang back-links issue is resolved for VLAN leaf reference.
+    // import sonic-vlan {
+    //     prefix vlan;
+    // }
 
     import sonic-port {
         prefix port;
@@ -45,8 +46,12 @@ module sonic-dhcp-server-ipv4 {
 
                 leaf name {
                     description "Interface name for DHCP server";
-                    type leafref {
-                        path "/vlan:sonic-vlan/vlan:VLAN/vlan:VLAN_LIST/vlan:name";
+                    // Comment VLAN leaf reference here until libyang back-links issue is resolved and use VLAN string pattern
+                    // type leafref {
+                    //     path "/vlan:sonic-vlan/vlan:VLAN/vlan:VLAN_LIST/vlan:name";
+                    // }
+                    type string {
+                        pattern 'Vlan([0-9]{1,3}|[1-3][0-9]{3}|[4][0][0-8][0-9]|[4][0][9][0-4])';
                     }
                 }
 
@@ -189,12 +194,12 @@ module sonic-dhcp-server-ipv4 {
 
                 description "DHCP_SERVER_IPV4_PORT list part of config_db.json";
 
-                key "vlan port";
+                key "name port";
 
-                leaf vlan {
-                    description "Name of vlan";
+                leaf name {
+                    description "Name of DHCP interface";
                     type leafref {
-                        path "/vlan:sonic-vlan/vlan:VLAN/vlan:VLAN_LIST/vlan:name";
+                        path "/dhcp-server-ipv4:sonic-dhcp-server-ipv4/dhcp-server-ipv4:DHCP_SERVER_IPV4/dhcp-server-ipv4:DHCP_SERVER_IPV4_LIST/dhcp-server-ipv4:name";
                     }
                 }
 

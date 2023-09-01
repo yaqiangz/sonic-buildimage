@@ -2,9 +2,9 @@
     "DHCP_SERVER_IPV4_VALID_FORMAT": {
         "desc": "Add dhcp_server_ipv4 in correct format."
     },
-    "DHCP_SERVER_IPV4_WITH_NON_EXIST_VLAN": {
-        "desc": "Configure vlan-id in DHCP_SERVER_IPV4 table which does not exist in VLAN table.",
-        "eStrKey": "LeafRef"
+    "DHCP_SERVER_IPV4_WITH_INVALID_VLAN": {
+        "desc": "Configure vlan-id in DHCP_SERVER_IPV4 table which is invalid.",
+        "eStrKey" : "Pattern"
     },
     "DHCP_SERVER_IPV4_INCORRECT_GATEWAY": {
         "desc": "Add gateway which is not in correct ip-prefix format.",
@@ -24,6 +24,10 @@
     },
     "DHCP_SREVER_IPV4_NON_EXIST_OPTION": {
         "desc": "Configure option in DHCP_SERVER_IPV4 table which does not exist in DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS table.",
+        "eStrKey": "LeafRef"
+    },
+    "DHCP_SERVER_IPV4_PORT_WITH_NO_EXIST_NAME": {
+        "desc": "Configure DHCP interface in DHCP_SERVER_IPV4_PORT table which is no exist.",
         "eStrKey": "LeafRef"
     },
     "DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS_TYPE_WRONG_VALUE": {
