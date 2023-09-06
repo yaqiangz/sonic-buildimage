@@ -2,6 +2,7 @@
 FROM docker-config-engine-bullseye-{{DOCKER_USERNAME}}:{{DOCKER_USERTAG}}
 
 ARG docker_container_name
+ARG image_version
 
 ## Make apt-get non-interactive
 ENV DEBIAN_FRONTEND=noninteractive
