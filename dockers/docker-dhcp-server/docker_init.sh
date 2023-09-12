@@ -15,7 +15,7 @@ CFGGEN_PARAMS=" \
 sonic-cfggen $CFGGEN_PARAMS
 
 # Make the script that waits for all interfaces to come up executable
-chmod +x /etc/kea/lease_update.sh
+chmod +x /etc/kea/lease_update.sh /usr/bin/start.sh
 # The docker container should start this script as PID 1, so now that supervisord is
 # properly configured, we exec /usr/local/bin/supervisord so that it runs as PID 1 for the
 # duration of the container's lifetime
