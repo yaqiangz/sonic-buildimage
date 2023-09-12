@@ -134,24 +134,24 @@ class DhcpServd(object):
         Args:
             hostname: Host name of current device.
         Returns:
-            List of lient_class dict, sample:
-                [
-                    {
+            Dict of lient_class dict, sample:
+                {
+                    "etp1": {
                         "name": "hostname:etp1",
                         "test": "relay4[1].hex == 'hostname:etp1'"
                     }
-                ]
+                }
             This sample indicate that we will tag packet as "hostname:etp1" which circuit-id in DHCP packet is
             "hostname:etp1"
         """
-        client_class = []
+        client_class = {}
         for key in list(self.port_alias_map.keys()):
             class_value = "{}:{}".format(hostname, self.port_alias_map[key])
             class_obj = {
                 "name": class_value,
                 "test":  "relay4[1].hex == '{}'".format(class_value)
             }
-            client_class.append(class_obj)
+            client_class[self.port_alias_map[key]] = class_obj
         return client_class
 
     def get_vlan_ipv4_interface(self):
@@ -366,6 +366,8 @@ class DhcpServd(object):
         Generate dhcp4 config.
         """
         self.kea_config = INIT_CONFIG
+
+
         # Get host name
         device_metadata = self.get_table(self.config_db, DEVICE_METADATA)
         localhost_entry = self.get_entry(device_metadata, "localhost")
@@ -376,7 +378,6 @@ class DhcpServd(object):
 
         # Generate client class, this class is to classify packets from different physical interfaces
         client_class = self.generate_relay_client_class(hostname)
-        self.kea_config["Dhcp4"]["client-classes"] = client_class
 
         # Get ip information of vlan
         vlan_interfaces = self.get_vlan_ipv4_interface()
@@ -391,6 +392,8 @@ class DhcpServd(object):
         # Parse port table
         self.parse_port(port_ipv4, vlan_interfaces)
 
+        class_set = []
+        classes_port = client_class.keys()
         # Construct config
         for dhcp_key in dhcp_server_ipv4.getKeys():
             dhcp_server_entry = self.get_entry(dhcp_server_ipv4, dhcp_key)
@@ -401,42 +404,49 @@ class DhcpServd(object):
             if "state" not in dhcp_server_entry or dhcp_server_entry["state"] != "enabled":
                 syslog.syslog(syslog.LOG_INFO, f"DHCP Server state for {dhcp_key} is not enabled, skip")
                 continue
-            if dhcp_key not in vlan_interfaces:
-                syslog.syslog(syslog.LOG_INFO, f"Cannot find interface IP for {dhcp_key}, skip")
-            for dhcp_interface_ip, ports in self.port_ips[dhcp_key].items():
-                # Specify server id via option 54 of DHCP reply packet
-                server_id = dhcp_interface_ip.split("/")[0]
-                # Sepcify address lease time via option 51 of DHCP reply packet
-                lease_time = int(dhcp_server_entry["lease_time"]) \
-                    if "lease_time" in dhcp_server_entry else DEFAULT_LEASE_TIME
-                # Sepcify router ip via option 3 of DHCP reply packet
-                gateway = dhcp_server_entry["gateway"] if "gateway" in dhcp_server_entry else server_id
-                config_subnet = {
-                    "subnet": str(ipaddress.ip_network(dhcp_interface_ip, False)),
-                    "pools": [],
-                    "option-data": [
-                        {
-                            "name": "routers",
-                            "data": "{}".format(gateway)
-                        },
-                        {
-                            "name": "dhcp-server-identifier",
-                            "data": "{}".format(server_id)
-                        }
-                    ],
-                    "valid-lifetime": lease_time,
-                    "reservations": []
-                }
-                # Construct ip pools based on ip range.
-                for port_name, ip_ranges in ports.items():
-                    for ip_range in ip_ranges:
-                        pool = {
-                            "pool": "{} - {}".format(str(ip_range[0]), str(ip_range[1])),
-                            "client-class": "{}:{}".format(hostname, port_name)
-                        }
-                        config_subnet["pools"].append(pool)
-                # TODO Add customized options
-                self.kea_config["Dhcp4"]["subnet4"].append(config_subnet)
+            if "mode" not in dhcp_server_entry:
+                syslog.syslog(syslog.LOG_WARNING, f"Missing dhcp mode setting for {dhcp_key}")
+            if dhcp_server_entry["mode"] == "PORT":
+                if dhcp_key not in vlan_interfaces:
+                    syslog.syslog(syslog.LOG_INFO, f"Cannot find interface IP for {dhcp_key}, skip")
+                for dhcp_interface_ip, ports in self.port_ips[dhcp_key].items():
+                    # Specify server id via option 54 of DHCP reply packet
+                    server_id = dhcp_interface_ip.split("/")[0]
+                    # Sepcify address lease time via option 51 of DHCP reply packet
+                    lease_time = int(dhcp_server_entry["lease_time"]) \
+                        if "lease_time" in dhcp_server_entry else DEFAULT_LEASE_TIME
+                    # Sepcify router ip via option 3 of DHCP reply packet
+                    gateway = dhcp_server_entry["gateway"] if "gateway" in dhcp_server_entry else server_id
+                    config_subnet = {
+                        "subnet": str(ipaddress.ip_network(dhcp_interface_ip, False)),
+                        "pools": [],
+                        "option-data": [
+                            {
+                                "name": "routers",
+                                "data": "{}".format(gateway)
+                            },
+                            {
+                                "name": "dhcp-server-identifier",
+                                "data": "{}".format(server_id)
+                            }
+                        ],
+                        "valid-lifetime": lease_time,
+                        "reservations": []
+                    }
+                    # Construct ip pools based on ip range.
+                    for port_name, ip_ranges in ports.items():
+                        if port_name in classes_port:
+                            class_set.append(client_class[port_name])
+                        for ip_range in ip_ranges:
+                            pool = {
+                                "pool": "{} - {}".format(str(ip_range[0]), str(ip_range[1])),
+                                "client-class": "{}:{}".format(hostname, port_name)
+                            }
+                            config_subnet["pools"].append(pool)
+                    # TODO Add customized options
+                    self.kea_config["Dhcp4"]["subnet4"].append(config_subnet)
+        self.kea_config["Dhcp4"]["client-classes"] = class_set
+
         with open("/etc/kea/kea-dhcp4.conf", "w") as file:
             json.dump(self.kea_config, file, indent=4, ensure_ascii=False)
 
