@@ -445,7 +445,8 @@ class DhcpServd(object):
                             config_subnet["pools"].append(pool)
                     # TODO Add customized options
                     self.kea_config["Dhcp4"]["subnet4"].append(config_subnet)
-        self.kea_config["Dhcp4"]["client-classes"] = class_set
+        if len(class_set) != 0:
+            self.kea_config["Dhcp4"]["client-classes"] = class_set
 
         with open("/etc/kea/kea-dhcp4.conf", "w") as file:
             json.dump(self.kea_config, file, indent=4, ensure_ascii=False)
