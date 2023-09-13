@@ -82,12 +82,12 @@ def generate_alerting_message(process_name, dead_minutes):
                   .format(process_name, namespace, dead_minutes))
 
 
-def get_autorestart_state(container_name):
+def get_autorestart_state(container_name, use_unix_socket_path):
     """
     @summary: Read the status of auto-restart feature from Config_DB.
     @return: Return the status of auto-restart feature.
     """
-    config_db = swsssdk.ConfigDBConnector()
+    config_db = swsssdk.ConfigDBConnector(use_unix_socket_path=use_unix_socket_path)
     config_db.connect()
     features_table = config_db.get_table(FEATURE_TABLE_NAME)
     if not features_table:
@@ -109,10 +109,13 @@ def get_autorestart_state(container_name):
 
 def main(argv):
     container_name = None
-    opts, args = getopt.getopt(argv, "c:", ["container-name="])
+    use_unix_socket_path = False
+    opts, args = getopt.getopt(argv, "c:s", ["container-name=", "use-unix-socket-path"])
     for opt, arg in opts:
         if opt in ("-c", "--container-name"):
             container_name = arg
+        if opt in ("-s", "--use-unix-socket-path"):
+            use_unix_socket_path = True
 
     if not container_name:
         syslog.syslog(syslog.LOG_ERR, "Container name not specified. Exiting...")
@@ -140,7 +143,7 @@ def main(argv):
                 group_name = payload_headers['groupname']
 
                 if (process_name in critical_process_list or group_name in critical_group_list) and expected == 0:
-                    is_auto_restart = get_autorestart_state(container_name)
+                    is_auto_restart = get_autorestart_state(container_name, use_unix_socket_path)
                     if is_auto_restart != "disabled":
                         MSG_FORMAT_STR = "Process '{}' exited unexpectedly. Terminating supervisor '{}'"
                         msg = MSG_FORMAT_STR.format(payload_headers['processname'], container_name)
