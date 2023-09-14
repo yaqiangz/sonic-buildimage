@@ -5,12 +5,15 @@
 mkdir -p /etc/supervisor/conf.d/
 # Generate kea folder
 mkdir -p /etc/kea/
-
+udp_server_ip=$(ip -j -4 addr list lo scope host | jq -r -M '.[0].addr_info[0].local')
+hostname=$(hostname)
 # Generate the following files from templates:
 # port-to-alias name map
 CFGGEN_PARAMS=" \
     -d \
     -t /usr/share/sonic/templates/port-name-alias-map.txt.j2,/tmp/port-name-alias-map.txt \
+    -t /usr/share/sonic/templates/rsyslog.conf.j2,/etc/rsyslog.conf \
+    -a "{\"udp_server_ip\": \"$udp_server_ip\", \"hostname\": \"$hostname\"}
 "
 sonic-cfggen $CFGGEN_PARAMS
 
