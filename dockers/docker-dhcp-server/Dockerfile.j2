@@ -79,5 +79,7 @@ COPY ["port-name-alias-map.txt.j2", "/usr/share/sonic/templates/"]
 COPY ["critical_processes", "/etc/supervisor/"]
 COPY ["kea-dhcp4.conf", "lease_update.sh", "/etc/kea/"]
 COPY ["cli", "/cli/"]
+COPY ["rsyslog/rsyslog.conf", "/etc"]
+COPY ["rsyslog/default.conf", "/etc/rsyslog.d"]
 
 ENTRYPOINT ["/usr/bin/docker_init.sh"]
