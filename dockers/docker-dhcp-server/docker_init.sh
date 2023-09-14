@@ -9,13 +9,10 @@ udp_server_ip=$(ip -j -4 addr list lo scope host | jq -r -M '.[0].addr_info[0].l
 hostname=$(hostname)
 # Generate the following files from templates:
 # port-to-alias name map
-CFGGEN_PARAMS=" \
-    -d \
-    -t /usr/share/sonic/templates/port-name-alias-map.txt.j2,/tmp/port-name-alias-map.txt \
-    -t /usr/share/sonic/templates/rsyslog.conf.j2,/etc/rsyslog.conf \
-    -a "{\"udp_server_ip\": \"$udp_server_ip\", \"hostname\": \"$hostname\"}
-"
-sonic-cfggen $CFGGEN_PARAMS
+sonic-cfggen -d -t /usr/share/sonic/templates/rsyslog.conf.j2 \
+    -a "{\"udp_server_ip\": \"$udp_server_ip\", \"hostname\": \"$hostname\"}" \
+    > /etc/rsyslog.conf
+sonic-cfggen -d -t /usr/share/sonic/templates/port-name-alias-map.txt.j2,/tmp/port-name-alias-map.txt
 
 # Make the script that waits for all interfaces to come up executable
 chmod +x /etc/kea/lease_update.sh /usr/bin/start.sh
