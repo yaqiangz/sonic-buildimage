@@ -75,9 +75,10 @@ RUN apt-get clean -y        && \
 COPY ["docker_init.sh", "start.sh", "dhcpservd.py", "/usr/bin/"]
 COPY ["supervisord.conf", "/etc/supervisor/conf.d/"]
 COPY ["files/supervisor-proc-exit-listener", "/usr/bin"]
-COPY ["port-name-alias-map.txt.j2", "/usr/share/sonic/templates/"]
+COPY ["port-name-alias-map.txt.j2", "rsyslog/rsyslog.conf.j2", "/usr/share/sonic/templates/"]
 COPY ["critical_processes", "/etc/supervisor/"]
 COPY ["kea-dhcp4.conf", "lease_update.sh", "/etc/kea/"]
 COPY ["cli", "/cli/"]
+COPY ["rsyslog/default.conf", "/etc/rsyslog.d"]
 
 ENTRYPOINT ["/usr/bin/docker_init.sh"]
