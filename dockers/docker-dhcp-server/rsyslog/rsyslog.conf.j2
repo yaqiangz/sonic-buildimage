@@ -93,33 +93,4 @@ $RepeatedMsgReduction on
 # The omfwd plug-in provides the core functionality of traditional message
 # forwarding via UDP and plain TCP. It is a built-in module that does not need
 # to be loaded.
-
-{% set servers = SYSLOG_SERVER | d({}) -%}
-{% for server in servers %}
-{% set conf = servers[server] | d({}) -%}
-
-{% set source = conf.get('source') -%}
-{% set port = conf.get('port', 514) -%}
-{% set proto = conf.get('protocol', 'udp') -%}
-{% set vrf = conf.get('vrf', 'default') -%}
-{% set severity = conf.get('severity', gconf.get('severity', 'notice')) -%}
-{% set filter = conf.get('filter') -%}
-{% set regex = conf.get('filter_regex') -%}
-
-{% set fmodifier = '!' if filter == 'exclude' else '' %}
-{% set device = 'eth0' if vrf == 'default' else vrf -%}
-{% set template = 'WelfRemoteFormat' if format == 'welf' else 'SONiCFileFormat' -%}
-
-{# Server extra options -#}
-{% set options = '' -%}
-
-{% if source -%}
-    {% set options = options ~ ' Address="' ~ source ~ '"'-%}
-{% endif -%}
-
-{% if filter %}
-:msg, {{ fmodifier }}ereregex, "{{ regex }}"
-{% endif %}
-*.{{ severity }}
-action(type="omfwd" Target="{{ server }}" Port="{{ port }}" Protocol="{{ proto }}" Device="{{ device }}" Template="{{ template }}"{{ options }})
-{% endfor %}
+# TODO rsyslog issue in bridge mode container, don't update to remote server for now
