@@ -515,6 +515,7 @@ if __name__ == "__main__":
     dhcpservd = DhcpServd()
     dhcpservd.generate_kea_dhcp4_config()
     dhcpservd.add_signal_handler()
+    # Send sighup to notify kea-dhcp4 process to fetch newest configuration file
     dhcpservd.sighup_process("kea-dhcp4")
     while True:
         time.sleep(5)
