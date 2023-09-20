@@ -3,10 +3,7 @@ from setuptools import setup
 dependencies = []
 
 test_deps = [
-    "pytest",
-    "mock>=2.0.0",
-    "mockredispy>=2.9.3",
-    "swsssdk>=1.3.0"
+    "pytest"
 ]
 
 py_modules = [
@@ -28,7 +25,8 @@ setup(
     ],
     py_modules=py_modules,
     scripts=[
-        "sonic-dhcp-server-cfggen"
+        "sonic-dhcp-server-cfggen",
+        "dhcpservd.py"
     ],
     classifiers=[
         "Intended Audience :: Developers",
