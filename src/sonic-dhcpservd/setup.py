@@ -7,11 +7,12 @@ test_deps = [
 ]
 
 py_modules = [
-    "dhcp_server_utils"
+    "dhcp_server_utils",
+    "dhcp_cfggen"
 ]
 
 setup(
-    name="sonic-dhcp-server",
+    name="sonic-dhcpservd",
     install_requires=dependencies,
     description="Module of SONiC built-in dhcp_server",
     version="1.0",
@@ -25,7 +26,6 @@ setup(
     ],
     py_modules=py_modules,
     scripts=[
-        "sonic-dhcp-server-cfggen",
         "dhcpservd.py"
     ],
     classifiers=[

@@ -4,6 +4,7 @@ REDIS_SOCK_PATH = "/var/run/redis/redis.sock"
 LEASE_FILE_PATH = "/tmp/kea-lease.csv"
 DHCP_SERVER_IPV4_LEASE = "DHCP_SERVER_IPV4_LEASE"
 DHCP_SERVER_IP_PORTS_FILE = "/tmp/dhcp_server_ip_ports.json"
+INIT_CONFIG_FILE = "/tmp/init_kea_dhcp4.conf"
 
 
 class DhcpDbConnector(object):
@@ -34,27 +35,28 @@ class DhcpDbConnector(object):
         """
         return swsscommon.Table(self.state_db, table_name)
 
-    def get_entry(self, table, entry_name):
-        """
-        Get dict entry from Table object.
-        Args:
-            table: Table object.
-            entry_name: Name of entry.
-        Returns:
-            Dict of entry, sample:
-                {
-                    "customized_options": "option60,option223",
-                    "gateway": "192.168.0.1",
-                    "lease_time": "900",
-                    "mode": "PORT",
-                    "netmask": "255.255.255.0",
-                    "state": "enabled"
-                }
-        """
-        (status, entry) = table.get(entry_name)
-        if not status:
-            return None
-        return dict(entry)
+
+def get_entry(table, entry_name):
+    """
+    Get dict entry from Table object.
+    Args:
+        table: Table object.
+        entry_name: Name of entry.
+    Returns:
+        Dict of entry, sample:
+            {
+                "customized_options": "option60,option223",
+                "gateway": "192.168.0.1",
+                "lease_time": "900",
+                "mode": "PORT",
+                "netmask": "255.255.255.0",
+                "state": "enabled"
+            }
+    """
+    (status, entry) = table.get(entry_name)
+    if not status:
+        return None
+    return dict(entry)
 
 
 def merge_intervals(intervals):

@@ -1,13 +1,12 @@
 #!/usr/bin/env python
-import argparse
-import sys
+
 import syslog
 import ipaddress
 import json
 
 from dhcp_server_utils import DhcpDbConnector
-from dhcp_server_utils import merge_intervals, get_keys
-from dhcp_server_utils import LEASE_FILE_PATH, DHCP_SERVER_IP_PORTS_FILE
+from dhcp_server_utils import merge_intervals, get_keys, get_entry
+from dhcp_server_utils import DHCP_SERVER_IP_PORTS_FILE, INIT_CONFIG_FILE
 
 PORT_MAP_PATH = "/tmp/port-name-alias-map.txt"
 UNICODE_TYPE = str
@@ -16,46 +15,6 @@ DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS = "DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS"
 DHCP_SERVER_IPV4_RANGE = "DHCP_SERVER_IPV4_RANGE"
 DHCP_SERVER_IPV4_PORT = "DHCP_SERVER_IPV4_PORT"
 DHCP_SERVER_IPV4_LEASE = "DHCP_SERVER_IPV4_LEASE"
-INIT_CONFIG = {
-    "Dhcp4": {
-        "hooks-libraries": [
-            {
-                "library": "/usr/local/lib/kea/hooks/libdhcp_run_script.so",
-                "parameters": {
-                    "name": "/etc/kea/lease_update.sh",
-                    "sync": False
-                }
-            }
-        ],
-        "interfaces-config": {
-            "interfaces": ["eth0"]
-        },
-        "control-socket": {
-            "socket-type": "unix",
-            "socket-name": "/run/kea/kea4-ctrl-socket"
-        },
-        "lease-database": {
-            "type": "memfile",
-            "persist": True,
-            "name": LEASE_FILE_PATH,
-            "lfc-interval": 3600
-        },
-        "subnet4": [],
-        "loggers": [
-            {
-                "name": "kea-dhcp4",
-                "output_options": [
-                    {
-                        "output": "/tmp/kea-dhcp.log",
-                        "pattern": "%-5p %m\n"
-                    }
-                ],
-                "severity": "INFO",
-                "debuglevel": 0
-            }
-        ]
-    }
-}
 # Default lease time of DHCP
 DEFAULT_LEASE_TIME = 900
 
@@ -78,7 +37,7 @@ class DhcpServCfg(object):
         Args:
             hostname: Host name of current device.
         Returns:
-            Dict of lient_class dict, sample:
+            Dict of client_class dict, sample:
                 {
                     "etp1": {
                         "name": "hostname:etp1",
@@ -152,7 +111,7 @@ class DhcpServCfg(object):
             if is_dict:
                 curr_range = range_ipv4.get(range, {}).get("range", {})
             else:
-                curr_range = self.db_connector.get_entry(range_ipv4, range)["range"].split(",")
+                curr_range = get_entry(range_ipv4, range)["range"].split(",")
             if len(curr_range) != 2:
                 syslog.syslog(syslog.LOG_WARNING, f"Length of {curr_range} != 2")
                 continue
@@ -174,7 +133,7 @@ class DhcpServCfg(object):
         is_dict, keys = get_keys(customized_options_ipv4)
         for option in keys:
             self.customized_options[option] = customized_options_ipv4.get(option, {}) if is_dict \
-                else self.db_connector.get_entry(customized_options_ipv4, option)
+                else get_entry(customized_options_ipv4, option)
 
     def match_range_network(self, dhcp_interface, dhcp_interface_name, port, range):
         """
@@ -245,7 +204,7 @@ class DhcpServCfg(object):
         self.ip_ports = {}
         is_dict, keys = get_keys(port_ipv4)
         for port_key in keys:
-            port_config = port_ipv4.get(port_key, {}) if is_dict else self.db_connector.get_entry(port_ipv4, port_key)
+            port_config = port_ipv4.get(port_key, {}) if is_dict else get_entry(port_ipv4, port_key)
             # Cannot specify both 'ips' and 'ranges'
             if "ips" in port_config and len(port_config["ips"]) != 0 and "ranges" in port_config \
                and len(port_config["ranges"]) != 0:
@@ -291,21 +250,33 @@ class DhcpServCfg(object):
                     self.port_ips[dhcp_interface_name][dhcp_interface_ip][port_name] = merge_intervals(ip_range)
 
         ip_ports = {}
-        for key, value in self.ip_ports.item():
+        for key, value in self.ip_ports.items():
             ip_ports[str(key)] = value
-        with open(DHCP_SERVER_IP_PORTS_FILE, "w") as write_file:
-            json.dump(ip_ports, write_file, indent=4, ensure_ascii=False)
+        try:
+            with open(DHCP_SERVER_IP_PORTS_FILE, "w") as write_file:
+                json.dump(ip_ports, write_file, indent=4, ensure_ascii=False)
+        except FileNotFoundError:
+            syslog.syslog(syslog.LOG_ERR, "Cannot write to: {}".format(DHCP_SERVER_IP_PORTS_FILE))
 
-    def generate_kea_dhcp4_config(self, from_db, config_file_path):
-        self.kea_config = INIT_CONFIG
+    def generate_kea_dhcp4_config(self, from_db=True, config_file_path=""):
+        try:
+            with open(INIT_CONFIG_FILE, "r", encoding="utf8")as fp:
+                self.kea_config = json.load(fp)
+        except FileNotFoundError:
+            syslog.syslog(syslog.LOG_ERR, "Cannot find init config file {}".format(INIT_CONFIG_FILE))
+            return None
+        except json.decoder.JSONDecodeError:
+            syslog.syslog(syslog.LOG_ERR, "Incorrect format of {}".format(INIT_CONFIG_FILE))
+            return None
+
         if from_db:
             self.db_connector = DhcpDbConnector()
             # Get host name
             device_metadata = self.db_connector.get_config_db_table("DEVICE_METADATA")
-            localhost_entry = self.db_connector.get_entry(device_metadata, "localhost")
+            localhost_entry = get_entry(device_metadata, "localhost")
             if localhost_entry is None or "hostname" not in localhost_entry:
-                print("Cannot get hostname", file=sys.stderr)
-                sys.exit(1)
+                syslog.syslog(syslog.LOG_ERR, "Cannot get hostname")
+                return None
             hostname = localhost_entry["hostname"]
             # Get ip information of vlan
             vlan_interface = self.db_connector.get_config_db_table("VLAN_INTERFACE")
@@ -321,8 +292,8 @@ class DhcpServCfg(object):
                     device_metadata = json_data.get("DEVICE_METADATA", {})
                     if "localhost" not in device_metadata or \
                        "hostname" not in device_metadata["localhost"]:
-                        print("Cannot get hostname", file=sys.stderr)
-                        sys.exit(1)
+                        syslog.syslog(syslog.LOG_ERR, "Cannot get hostname")
+                        return None
                     hostname = device_metadata["localhost"]["hostname"]
                     vlan_interface_keys = json_data.get("VLAN_INTERFACE", {}).keys()
                     vlan_interfaces = self.get_vlan_ipv4_interface(vlan_interface_keys)
@@ -332,8 +303,11 @@ class DhcpServCfg(object):
                     port_ipv4 = json_data.get(DHCP_SERVER_IPV4_PORT, {})
                     vlan_members = list(json_data.get("VLAN_MEMBER", {}).keys())
             except FileNotFoundError:
-                print("Cannot find {}".fromat(config_file_path), file=sys.stderr)
-                sys.exit(1)
+                syslog.syslog(syslog.LOG_ERR, "Cannot find config_db file {}".format(config_file_path))
+                return None
+            except json.decoder.JSONDecodeError:
+                syslog.syslog(syslog.LOG_ERR, "Incorrect format of {}".format(config_file_path))
+                return None
 
         # Generate client class, this class is to classify packets from different physical interfaces
         client_class = self.generate_relay_client_class(hostname)
@@ -352,7 +326,7 @@ class DhcpServCfg(object):
         is_dict, keys = get_keys(dhcp_server_ipv4)
         for dhcp_key in keys:
             dhcp_server_entry = dhcp_server_ipv4.get(dhcp_key, {}) if is_dict else \
-                self.db_connector.get_entry(dhcp_server_ipv4, dhcp_key)
+                get_entry(dhcp_server_ipv4, dhcp_key)
             if dhcp_server_entry is None:
                 syslog.syslog(syslog.LOG_WARNING, f"Unable to get {dhcp_key} entry")
                 continue
@@ -403,32 +377,12 @@ class DhcpServCfg(object):
                     self.kea_config["Dhcp4"]["subnet4"].append(config_subnet)
         if len(class_set) != 0:
             self.kea_config["Dhcp4"]["client-classes"] = class_set
-        print(json.dumps(self.kea_config, indent=4))
+        return self.kea_config
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Generate dhcp_server configuration from config.")
-    parser.add_argument("-d", "--from-db", help="read config from configdb", action='store_true')
-    parser.add_argument("-f", "--config-file", help="config_db file in json")
-    parser.add_argument("-v", "--ip-version", help="ip version", default=4)
-    args = parser.parse_args()
-    config_file_path = args.config_file
-    from_db = args.from_db
-    if config_file_path is not None and from_db:
-        print("Cannot specify both config-file and from-db", file=sys.stderr)
-        sys.exit(1)
-    if config_file_path is None and not from_db:
-        print("Missing config source form file or db", file=sys.stderr)
-        sys.exit(1)
-    ip_version = args.ip_version
-    if ip_version not in [4, 6]:
-        print("Wroing IP version: {}".format(ip_version), file=sys.stderr)
-        sys.exit(1)
     dhcpservcfg = DhcpServCfg()
-    if ip_version == 4:
-        dhcpservcfg.generate_kea_dhcp4_config(from_db, config_file_path)
-    if ip_version == 6:
-        print("Unsupport ipv6 for now.")
+    dhcpservcfg.generate_kea_dhcp4_config(True, "/etc/sonic/config_db.json")
 
 
 if __name__ == "__main__":
