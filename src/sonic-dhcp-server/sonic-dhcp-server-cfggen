@@ -5,11 +5,12 @@ import syslog
 import ipaddress
 import json
 
-from dhcp_server_utils import DhcpDbConnector, merge_intervals, get_keys
+from dhcp_server_utils import DhcpDbConnector
+from dhcp_server_utils import merge_intervals, get_keys
+from dhcp_server_utils import LEASE_FILE_PATH, DHCP_SERVER_IP_PORTS_FILE
 
 PORT_MAP_PATH = "/tmp/port-name-alias-map.txt"
 UNICODE_TYPE = str
-LEASE_FILE_PATH = "/tmp/kea-lease.csv"
 DHCP_SERVER_IPV4 = "DHCP_SERVER_IPV4"
 DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS = "DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS"
 DHCP_SERVER_IPV4_RANGE = "DHCP_SERVER_IPV4_RANGE"
@@ -228,7 +229,7 @@ class DhcpServCfg(object):
             }
         }
         self.ip_ports = {
-            IPv4Network('192.168.0.0/24')
+            IPv4Network('192.168.0.0/24'): "Vlan1000"
         }
         Args:
             port_ipv4: Table object.
@@ -289,6 +290,12 @@ class DhcpServCfg(object):
                 for port_name, ip_range in port_range.items():
                     self.port_ips[dhcp_interface_name][dhcp_interface_ip][port_name] = merge_intervals(ip_range)
 
+        ip_ports = {}
+        for key, value in self.ip_ports.item():
+            ip_ports[str(key)] = value
+        with open(DHCP_SERVER_IP_PORTS_FILE, "w") as write_file:
+            json.dump(ip_ports, write_file, indent=4, ensure_ascii=False)
+
     def generate_kea_dhcp4_config(self, from_db, config_file_path):
         self.kea_config = INIT_CONFIG
         if from_db:
@@ -308,21 +315,25 @@ class DhcpServCfg(object):
             vlan_member_table = self.db_connector.get_config_db_table("VLAN_MEMBER")
             vlan_members = vlan_member_table.getKeys()
         else:
-            with open(config_file_path, "r", encoding="utf8")as fp:
-                json_data = json.load(fp)
-                device_metadata = json_data.get("DEVICE_METADATA", {})
-                if "localhost" not in device_metadata or \
-                   "hostname" not in device_metadata["localhost"]:
-                    print("Cannot get hostname", file=sys.stderr)
-                    sys.exit(1)
-                hostname = device_metadata["localhost"]["hostname"]
-                vlan_interface_keys = json_data.get("VLAN_INTERFACE", {}).keys()
-                vlan_interfaces = self.get_vlan_ipv4_interface(vlan_interface_keys)
-                dhcp_server_ipv4 = json_data.get(DHCP_SERVER_IPV4, {})
-                customized_options_ipv4 = json_data.get(DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS, {})
-                range_ipv4 = json_data.get(DHCP_SERVER_IPV4_RANGE, {})
-                port_ipv4 = json_data.get(DHCP_SERVER_IPV4_PORT, {})
-                vlan_members = list(json_data.get("VLAN_MEMBER", {}).keys())
+            try:
+                with open(config_file_path, "r", encoding="utf8")as fp:
+                    json_data = json.load(fp)
+                    device_metadata = json_data.get("DEVICE_METADATA", {})
+                    if "localhost" not in device_metadata or \
+                       "hostname" not in device_metadata["localhost"]:
+                        print("Cannot get hostname", file=sys.stderr)
+                        sys.exit(1)
+                    hostname = device_metadata["localhost"]["hostname"]
+                    vlan_interface_keys = json_data.get("VLAN_INTERFACE", {}).keys()
+                    vlan_interfaces = self.get_vlan_ipv4_interface(vlan_interface_keys)
+                    dhcp_server_ipv4 = json_data.get(DHCP_SERVER_IPV4, {})
+                    customized_options_ipv4 = json_data.get(DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS, {})
+                    range_ipv4 = json_data.get(DHCP_SERVER_IPV4_RANGE, {})
+                    port_ipv4 = json_data.get(DHCP_SERVER_IPV4_PORT, {})
+                    vlan_members = list(json_data.get("VLAN_MEMBER", {}).keys())
+            except FileNotFoundError:
+                print("Cannot find {}".fromat(config_file_path), file=sys.stderr)
+                sys.exit(1)
 
         # Generate client class, this class is to classify packets from different physical interfaces
         client_class = self.generate_relay_client_class(hostname)
@@ -416,6 +427,8 @@ def main():
     dhcpservcfg = DhcpServCfg()
     if ip_version == 4:
         dhcpservcfg.generate_kea_dhcp4_config(from_db, config_file_path)
+    if ip_version == 6:
+        print("Unsupport ipv6 for now.")
 
 
 if __name__ == "__main__":

@@ -1,6 +1,9 @@
 from swsscommon import swsscommon
 
 REDIS_SOCK_PATH = "/var/run/redis/redis.sock"
+LEASE_FILE_PATH = "/tmp/kea-lease.csv"
+DHCP_SERVER_IPV4_LEASE = "DHCP_SERVER_IPV4_LEASE"
+DHCP_SERVER_IP_PORTS_FILE = "/tmp/dhcp_server_ip_ports.json"
 
 
 class DhcpDbConnector(object):
@@ -11,7 +14,7 @@ class DhcpDbConnector(object):
 
     def get_config_db_table(self, table_name):
         """
-        Get table from db.
+        Get table from config_db.
         Args:
             db: An db object.
             table_name: Name of table want to get.
@@ -19,6 +22,17 @@ class DhcpDbConnector(object):
             Table objects.
         """
         return swsscommon.Table(self.config_db, table_name)
+
+    def get_state_db_table(self, table_name):
+        """
+        Get table from state_db.
+        Args:
+            db: An db object.
+            table_name: Name of table want to get.
+        Return:
+            Table objects.
+        """
+        return swsscommon.Table(self.state_db, table_name)
 
     def get_entry(self, table, entry_name):
         """

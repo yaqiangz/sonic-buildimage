@@ -59,6 +59,14 @@ RUN pip3 install psutil
 {{ install_debian_packages(docker_dhcp_server_debs.split(' ')) }}
 {%- endif %}
 
+{% if docker_dhcp_server_whls.strip() %}
+# Copy locally-built Python wheel dependencies
+{{ copy_files("python-wheels/", docker_dhcp_server_whls.split(' '), "/python-wheels/") }}
+
+# Install locally-built Python wheel dependencies
+{{ install_python_wheels(docker_dhcp_server_whls.split(' ')) }}
+{% endif %}
+
 # Remove build stuff we don't need
 RUN apt-get remove -y devscripts    \
                 automake            \
