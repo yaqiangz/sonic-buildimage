@@ -24,10 +24,15 @@ setup(
         "pytest-runner",
         "wheel",
     ],
-    py_modules=py_modules,
-    scripts=[
-        "dhcpservd.py"
+    packages=[
+        "dhcpservd"
     ],
+    entry_points={
+        "console_scripts": [
+            "dhcpservd = dhcpservd.dhcpservd:main"
+        ]
+    },
+    py_modules=py_modules,
     classifiers=[
         "Intended Audience :: Developers",
         "Operating System :: Linux",

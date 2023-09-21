@@ -4,9 +4,8 @@ import syslog
 import ipaddress
 import json
 
-from dhcp_server_utils import DhcpDbConnector
-from dhcp_server_utils import merge_intervals, get_keys, get_entry
-from dhcp_server_utils import DHCP_SERVER_IP_PORTS_FILE, INIT_CONFIG_FILE
+from .dhcp_server_utils import DhcpDbConnector
+from .dhcp_server_utils import merge_intervals, get_keys, get_entry
 
 PORT_MAP_PATH = "/tmp/port-name-alias-map.txt"
 UNICODE_TYPE = str
@@ -15,11 +14,13 @@ DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS = "DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS"
 DHCP_SERVER_IPV4_RANGE = "DHCP_SERVER_IPV4_RANGE"
 DHCP_SERVER_IPV4_PORT = "DHCP_SERVER_IPV4_PORT"
 DHCP_SERVER_IPV4_LEASE = "DHCP_SERVER_IPV4_LEASE"
+DHCP_SERVER_IP_PORTS_FILE = "/tmp/dhcp_server_ip_ports.json"
+INIT_CONFIG_FILE = "/etc/kea/init_kea_dhcp4.conf"
 # Default lease time of DHCP
 DEFAULT_LEASE_TIME = 900
 
 
-class DhcpServCfg(object):
+class DhcpServCfgGenerator(object):
     def __init__(self):
         # Read port alias map file
         self.port_alias_map = {}
@@ -359,6 +360,7 @@ class DhcpServCfg(object):
             if dhcp_server_entry["mode"] == "PORT":
                 if dhcp_key not in vlan_interfaces:
                     syslog.syslog(syslog.LOG_INFO, f"Cannot find interface IP for {dhcp_key}, skip")
+                    continue
                 for dhcp_interface_ip, ports in self.port_ips[dhcp_key].items():
                     # Specify server id via option 54 of DHCP reply packet
                     server_id = dhcp_interface_ip.split("/")[0]
@@ -401,7 +403,7 @@ class DhcpServCfg(object):
 
 
 def main():
-    dhcpservcfg = DhcpServCfg()
+    dhcpservcfg = DhcpServCfgGenerator()
     dhcpservcfg.generate_kea_dhcp4_config(True, "/etc/sonic/config_db.json")
 
 
