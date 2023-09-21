@@ -4,7 +4,7 @@ REDIS_SOCK_PATH = "/var/run/redis/redis.sock"
 LEASE_FILE_PATH = "/tmp/kea-lease.csv"
 DHCP_SERVER_IPV4_LEASE = "DHCP_SERVER_IPV4_LEASE"
 DHCP_SERVER_IP_PORTS_FILE = "/tmp/dhcp_server_ip_ports.json"
-INIT_CONFIG_FILE = "/tmp/init_kea_dhcp4.conf"
+INIT_CONFIG_FILE = "/etc/kea/init_kea_dhcp4.conf"
 
 
 class DhcpDbConnector(object):
