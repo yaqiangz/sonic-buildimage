@@ -21,6 +21,7 @@ DEFAULT_LEASE_TIME = 900
 
 class DhcpServCfg(object):
     def __init__(self):
+        # Read port alias map file
         self.port_alias_map = {}
         with open(PORT_MAP_PATH, "r") as file:
             lines = file.readlines()
@@ -72,6 +73,12 @@ class DhcpServCfg(object):
     def get_vlan_ipv4_interface(self, vlan_interface_keys):
         """
         Get ipv4 info of vlans
+        Args:
+            vlan_interface_keys: Keys of vlan_interfaces, sample:
+                [
+                    "Vlan1000|192.168.0.1/21",
+                    "Vlan1000|fc02:1000::1/64"
+                ]
         Returns:
             Vlans infomation, sample:
                 {
@@ -84,9 +91,11 @@ class DhcpServCfg(object):
         ret = {}
         for key in vlan_interface_keys:
             splits = key.split("|")
+            # Skip with no ip address
             if len(splits) != 2:
                 continue
             network = ipaddress.ip_network(UNICODE_TYPE(splits[1]), False)
+            # Skip ipv6
             if network.version != 4:
                 continue
             if key not in ret:
@@ -103,7 +112,7 @@ class DhcpServCfg(object):
             'range3': [IPv4Address('192.168.0.10'), IPv4Address('192.168.0.10')]
         }
         Args:
-            range_ipv4: Table object.
+            range_ipv4: Table object or dict of range.
         """
         self.ranges = {}
         is_dict, keys = get_keys(range_ipv4)
@@ -126,7 +135,7 @@ class DhcpServCfg(object):
         """
         Parse content in DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS table.
         Args:
-            customized_options_ipv4: Table object.
+            customized_options_ipv4: Table object or dict of customized options.
         """
         # TODO validate option type
         self.customized_options = {}
@@ -253,12 +262,21 @@ class DhcpServCfg(object):
         for key, value in self.ip_ports.items():
             ip_ports[str(key)] = value
         try:
+            # Store network - dhcp port map file which would be used by dhcpservd while updating lease table
             with open(DHCP_SERVER_IP_PORTS_FILE, "w") as write_file:
                 json.dump(ip_ports, write_file, indent=4, ensure_ascii=False)
         except FileNotFoundError:
             syslog.syslog(syslog.LOG_ERR, "Cannot write to: {}".format(DHCP_SERVER_IP_PORTS_FILE))
 
     def generate_kea_dhcp4_config(self, from_db=True, config_file_path=""):
+        """
+        Generate kea-dhcp4 config
+        Args:
+            from_db: boolean, if set to True, generate config from running config_db
+            config_file_path: str, if from_db is False, generate config from config_db file
+        Returns:
+            config dict
+        """
         try:
             with open(INIT_CONFIG_FILE, "r", encoding="utf8")as fp:
                 self.kea_config = json.load(fp)
@@ -269,6 +287,7 @@ class DhcpServCfg(object):
             syslog.syslog(syslog.LOG_ERR, "Incorrect format of {}".format(INIT_CONFIG_FILE))
             return None
 
+        # Generate from running config_db
         if from_db:
             self.db_connector = DhcpDbConnector()
             # Get host name
@@ -285,6 +304,7 @@ class DhcpServCfg(object):
             dhcp_server_ipv4, customized_options_ipv4, range_ipv4, port_ipv4 = self.get_dhcp_ipv4_tables_from_db()
             vlan_member_table = self.db_connector.get_config_db_table("VLAN_MEMBER")
             vlan_members = vlan_member_table.getKeys()
+        # Generate from config_db file
         else:
             try:
                 with open(config_file_path, "r", encoding="utf8")as fp:
