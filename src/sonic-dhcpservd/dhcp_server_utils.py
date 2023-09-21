@@ -17,7 +17,6 @@ class DhcpDbConnector(object):
         """
         Get table from config_db.
         Args:
-            db: An db object.
             table_name: Name of table want to get.
         Return:
             Table objects.
@@ -28,7 +27,6 @@ class DhcpDbConnector(object):
         """
         Get table from state_db.
         Args:
-            db: An db object.
             table_name: Name of table want to get.
         Return:
             Table objects.
@@ -90,18 +88,10 @@ def get_keys(obj):
     """
     Get keys from config db table or db dict
     Args:
-        intervals: Ip ranges, may have overlaps, sample:
-            [
-                [IPv4Address('192.168.0.2'), IPv4Address('192.168.0.5')],
-                [IPv4Address('192.168.0.3'), IPv4Address('192.168.0.6')],
-                [IPv4Address('192.168.0.10'), IPv4Address('192.168.0.10')]
-            ]
+        obj: db table or dict
     Returns:
-        Merged ip ranges, sample:
-            [
-                [IPv4Address('192.168.0.2'), IPv4Address('192.168.0.6')],
-                [IPv4Address('192.168.0.10'), IPv4Address('192.168.0.10')]
-            ]
+        is_dict: boolean, indicate whether obj is dict
+        keys: list of keys
     """
     is_dict = True if isinstance(obj, dict) else False
     keys = list(obj.keys()) if is_dict else obj.getKeys()
