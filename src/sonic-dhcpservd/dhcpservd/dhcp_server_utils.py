@@ -1,13 +1,18 @@
 from swsscommon import swsscommon
 
-REDIS_SOCK_PATH = "/var/run/redis/redis.sock"
+DEFAULT_REDIS_HOST = "127.0.0.1"
+DEFAULT_REDIS_PORT = 6379
 
 
-class DhcpDbConnector(object):
-    def __init__(self):
-        self.redis_sock = REDIS_SOCK_PATH
-        self.config_db = swsscommon.DBConnector(swsscommon.CONFIG_DB, self.redis_sock, 0)
-        self.state_db = swsscommon.DBConnector(swsscommon.STATE_DB, self.redis_sock, 0)
+class DhcpDbConnector(object, ):
+    def __init__(self, redis_host=DEFAULT_REDIS_HOST, redis_port=DEFAULT_REDIS_PORT, redis_sock=None):
+        if redis_sock is not None:
+            self.redis_sock = redis_sock
+            self.config_db = swsscommon.DBConnector(swsscommon.CONFIG_DB, redis_sock, 0)
+            self.state_db = swsscommon.DBConnector(swsscommon.STATE_DB, redis_sock, 0)
+        else:
+            self.config_db = swsscommon.DBConnector(swsscommon.CONFIG_DB, redis_host, redis_port, 0)
+            self.state_db = swsscommon.DBConnector(swsscommon.STATE_DB, redis_host, redis_port, 0)
 
     def get_config_db_table(self, table_name):
         """
@@ -17,7 +22,7 @@ class DhcpDbConnector(object):
         Return:
             Table objects.
         """
-        return swsscommon.Table(self.config_db, table_name)
+        return _parse_table_to_dict(swsscommon.Table(self.config_db, table_name))
 
     def get_state_db_table(self, table_name):
         """
@@ -27,7 +32,21 @@ class DhcpDbConnector(object):
         Return:
             Table objects.
         """
-        return swsscommon.Table(self.state_db, table_name)
+        return _parse_table_to_dict(swsscommon.Table(self.state_db, table_name))
+
+
+def _parse_table_to_dict(table):
+    ret = {}
+    for key in table.getKeys():
+        entry = get_entry(table, key)
+        for field, value in entry.items():
+            # if value of this field is list, field end with @, so cannot found by hget
+            if table.hget(key, field)[0]:
+                entry[field] = value
+            else:
+                entry[field] = value.split(",")
+        ret[key] = entry
+    return ret
 
 
 def get_entry(table, entry_name):
@@ -47,9 +66,7 @@ def get_entry(table, entry_name):
                 "state": "enabled"
             }
     """
-    (status, entry) = table.get(entry_name)
-    if not status:
-        return None
+    (_, entry) = table.get(entry_name)
     return dict(entry)
 
 
@@ -78,17 +95,3 @@ def merge_intervals(intervals):
         else:
             ret[-1][-1] = max(ret[-1][-1], interval[-1])
     return ret
-
-
-def get_keys(obj):
-    """
-    Get keys from config db table or db dict
-    Args:
-        obj: db table or dict
-    Returns:
-        is_dict: boolean, indicate whether obj is dict
-        keys: list of keys
-    """
-    is_dict = True if isinstance(obj, dict) else False
-    keys = list(obj.keys()) if is_dict else obj.getKeys()
-    return is_dict, keys
