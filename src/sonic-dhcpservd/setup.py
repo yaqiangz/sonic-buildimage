@@ -8,7 +8,8 @@ test_deps = [
 
 py_modules = [
     "dhcp_server_utils",
-    "dhcp_cfggen"
+    "dhcp_cfggen",
+    "dhcp_lease"
 ]
 
 setup(
