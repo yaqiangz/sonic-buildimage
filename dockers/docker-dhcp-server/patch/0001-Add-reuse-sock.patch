@@ -1,0 +1,64 @@
+From 2f5019531bda85569a950b92927e5c861e4f7dde Mon Sep 17 00:00:00 2001
+From: yaqiangz <zyq1512099831@gmail.com>
+Date: Thu, 28 Sep 2023 01:50:29 +0000
+Subject: [PATCH] Add reuse sock
+
+---
+ src/lib/dhcp/pkt_filter.cc      | 10 +++++++++-
+ src/lib/dhcp/pkt_filter_inet.cc | 10 +++++++++-
+ 2 files changed, 18 insertions(+), 2 deletions(-)
+
+diff --git a/src/lib/dhcp/pkt_filter.cc b/src/lib/dhcp/pkt_filter.cc
+index 770d71d..646652c 100644
+--- a/src/lib/dhcp/pkt_filter.cc
++++ b/src/lib/dhcp/pkt_filter.cc
+@@ -39,6 +39,14 @@ PktFilter::openFallbackSocket(const isc::asiolink::IOAddress& addr,
+     addr4.sin_addr.s_addr = htonl(addr.toUint32());
+     addr4.sin_port = htons(port);
+ 
++    int flag = 1;
++    int ret = setsockopt(sock, SOL_SOCKET, SO_REUSEADDR,
++			    (char *)&flag, sizeof(flag));
++    if (ret < 0) {
++        isc_throw(SocketConfigError,
++                    "unable to set reuseaddr option on the socket");
++    }
++
+     if (bind(sock, reinterpret_cast<struct sockaddr*>(&addr4),
+              sizeof(addr4)) < 0) {
+         // Get the error message immediately after the bind because the
+@@ -46,7 +54,7 @@ PktFilter::openFallbackSocket(const isc::asiolink::IOAddress& addr,
+         char* errmsg = strerror(errno);
+         // Remember to close the socket if we failed to bind it.
+         close(sock);
+-        isc_throw(SocketConfigError, "failed to bind fallback socket to"
++        isc_throw(SocketConfigError, "faile2d to bind fallback socket to"
+                   " address " << addr << ", port " << port
+                   << ", reason: " << errmsg
+                   << " - is another DHCP server running?");
+diff --git a/src/lib/dhcp/pkt_filter_inet.cc b/src/lib/dhcp/pkt_filter_inet.cc
+index 5fedd30..d66dd1c 100644
+--- a/src/lib/dhcp/pkt_filter_inet.cc
++++ b/src/lib/dhcp/pkt_filter_inet.cc
+@@ -73,9 +73,17 @@ PktFilterInet::openSocket(Iface& iface,
+         }
+     }
+ 
++    int reuse_flag = 1;
++    int ret = setsockopt(sock, SOL_SOCKET, SO_REUSEADDR,
++			    (char *)&reuse_flag, sizeof(reuse_flag));
++    if (ret < 0) {
++        isc_throw(SocketConfigError,
++                    "unable to set reuseaddr option on the socket");
++    }
++
+     if (bind(sock, (struct sockaddr *)&addr4, sizeof(addr4)) < 0) {
+         close(sock);
+-        isc_throw(SocketConfigError, "Failed to bind socket " << sock
++        isc_throw(SocketConfigError, "Failed 1to bind socket " << sock
+                   << " to " << addr
+                   << "/port=" << port);
+     }
+-- 
+2.25.1
+
