@@ -21,6 +21,8 @@ RUN apt-get update &&       \
         pkg-config          \
         build-essential     \
         ccache              \
+        git                 \
+        stgit               \
 # For kea dependancies
         libboost-dev        \
         libboost-system-dev \
@@ -28,9 +30,12 @@ RUN apt-get update &&       \
         libssl-dev
 
 # Install kea from source
+COPY ["patch", "/etc/patch"]
 RUN apt-get install -f -y devscripts
 RUN mkdir kea && cd kea && dget -u http://deb.debian.org/debian/pool/main/i/isc-kea/isc-kea_2.2.0-6.dsc
-RUN cd /kea/isc-kea-2.2.0 && autoreconf --install && ./configure --disable-FEATURE \
+RUN cd /kea/isc-kea-2.2.0 && git config --global user.name "tempuse" && git config --global user.email \
+    "tempemail@microsoft.com" &&  git init && git add -f * && git commit -qm "initial commit" && stg init \
+    && stg import -s /etc/patch/series && autoreconf --install && ./configure --disable-FEATURE \
     --enable-static=no --disable-install-configurations --enable-pgsql-ssl=no --with-PACKAGE=no \
     && make -j$(nproc) && make install
 # Create run folder for kea
@@ -43,6 +48,7 @@ RUN cd /usr/local/lib && rm -v *.la && rm -v kea/hooks/*.la
 Run find /usr/local/sbin/ /usr/local/lib/ -type f -exec strip --strip-unneeded {} \;
 # Remove source code
 RUN rm -rf /kea
+RUN rm -rf /etc/patch
 RUN echo "/usr/local/lib/kea/hooks" > /etc/ld.so.conf.d/kea.conf && \
     ldconfig
 # Remove sbin we don't need
@@ -73,6 +79,8 @@ RUN apt-get remove -y devscripts    \
                 libtool             \
                 pkg-config          \
                 build-essential     \
+                git                 \
+                stgit               \
                 python3-dev         \
                 ccache
 
