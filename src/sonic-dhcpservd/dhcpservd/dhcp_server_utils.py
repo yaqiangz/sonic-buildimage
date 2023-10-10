@@ -4,7 +4,7 @@ DEFAULT_REDIS_HOST = "127.0.0.1"
 DEFAULT_REDIS_PORT = 6379
 
 
-class DhcpDbConnector(object, ):
+class DhcpDbConnector(object):
     def __init__(self, redis_host=DEFAULT_REDIS_HOST, redis_port=DEFAULT_REDIS_PORT, redis_sock=None):
         if redis_sock is not None:
             self.redis_sock = redis_sock
@@ -33,20 +33,6 @@ class DhcpDbConnector(object, ):
             Table objects.
         """
         return _parse_table_to_dict(swsscommon.Table(self.state_db, table_name))
-
-
-def _parse_table_to_dict(table):
-    ret = {}
-    for key in table.getKeys():
-        entry = get_entry(table, key)
-        for field, value in entry.items():
-            # if value of this field is list, field end with @, so cannot found by hget
-            if table.hget(key, field)[0]:
-                entry[field] = value
-            else:
-                entry[field] = value.split(",")
-        ret[key] = entry
-    return ret
 
 
 def get_entry(table, entry_name):
@@ -94,4 +80,18 @@ def merge_intervals(intervals):
             ret.append(interval)
         else:
             ret[-1][-1] = max(ret[-1][-1], interval[-1])
+    return ret
+
+
+def _parse_table_to_dict(table):
+    ret = {}
+    for key in table.getKeys():
+        entry = get_entry(table, key)
+        for field, value in entry.items():
+            # if value of this field is list, field end with @, so cannot found by hget
+            if table.hget(key, field)[0]:
+                entry[field] = value
+            else:
+                entry[field] = value.split(",")
+        ret[key] = entry
     return ret

@@ -1,3 +1,4 @@
+{%- set default_lease_time = 900 -%}
 {
     "Dhcp4": {
         "hooks-libraries": [
@@ -25,56 +26,37 @@
             "lfc-interval": 3600
         },
         "subnet4": [
-{%- set has_port_config = { 'flag': False } %}
-{%- if dhcp_server_ipv4 %}
-    {%- for dhcp_server_entry in dhcp_server_ipv4 if "state" in dhcp_server_ipv4[dhcp_server_entry] and dhcp_server_ipv4[dhcp_server_entry]["state"] == "enabled" and dhcp_server_entry in vlan_interface %}
-        {%- if "mode" in dhcp_server_ipv4[dhcp_server_entry] %}
-            {%- if dhcp_server_ipv4[dhcp_server_entry]["mode"] == "PORT" %}
-                {%- for dhcp_interface_ip in port_ips[dhcp_server_entry] %}
+{%- set add_subnet_preceding_comma = { 'flag': False } %}
+{%- for subnet_info in subnets %}
+    {%- if add_subnet_preceding_comma.flag -%},{%- endif -%}
+    {%- set _dummy = add_subnet_preceding_comma.update({'flag': True}) %}
             {
-                "subnet": "{{ port_ips[dhcp_server_entry][dhcp_interface_ip]["subnet"] }}",
+                "subnet": "{{ subnet_info["subnet"] }}",
                 "pools": [
-                {%- set server_id = dhcp_interface_ip.split("/")[0] -%}
-                {%- set lease_time = default_lease_time %}
-                {%- if "lease_time" in dhcp_server_ipv4[dhcp_server_entry] %}
-                    {%- set lease_time = dhcp_server_ipv4[dhcp_server_entry]["lease_time"] %}
-                {%- endif %}
-                {%- set gateway = server_id %}
-                {%- if "gateway" in dhcp_server_ipv4[dhcp_server_entry] %}
-                    {%- set gateway = dhcp_server_ipv4[dhcp_server_entry]["gateway"] %}
-                {%- endif %}
-                    {%- set add_preceding_comma = { 'flag': False } %}
-                    {%- for member_intf in port_ips[dhcp_server_entry][dhcp_interface_ip] if member_intf != "subnet" %}
-                            {%- set ranges = port_ips[dhcp_server_entry][dhcp_interface_ip][member_intf] %}
-                            {%- for range in ranges %}
-                                {%- if add_preceding_comma.flag -%},{%- endif -%}
-                                {%- set _dummy = add_preceding_comma.update({'flag': True}) %}
-                                {%- set _dummy = has_port_config.update({'flag': True}) %}
+    {%- set add_pool_preceding_comma = { 'flag': False } %}
+    {%- for pool in subnet_info["pools"] %}
+            {%- if add_pool_preceding_comma.flag -%},{%- endif -%}
+            {%- set _dummy = add_pool_preceding_comma.update({'flag': True}) %}
                     {
-                        "pool": "{{ range[0] }} - {{ range[1] }}",
-                        "client-class": "{{ hostname }}:{{ member_intf }}"
+                        "pool": "{{ pool["range"] }}",
+                        "client-class": "{{ pool["client_class"] }}"
                     }
-                            {%- endfor %}
-                    {%- endfor %}
+    {%- endfor%}
                 ],
                 "option-data": [
                     {
                         "name": "routers",
-                        "data": "{{ gateway }}"
+                        "data": "{{ subnet_info["gateway"] if "gateway" in subnet_info else subnet_info["server_id"] }}"
                     },
                     {
                         "name": "dhcp-server-identifier",
-                        "data": "{{ server_id }}"
-                    } {# TODO Add support for customized options #}
+                        "data": "{{ subnet_info["server_id"] }}"
+                    }
                 ],
-                "valid-lifetime": {{ lease_time }},
+                "valid-lifetime": {{ subnet_info["lease_time"] if "lease_time" in subnet_info else default_lease_time }},
                 "reservations": []
             }
-                {%- endfor %}
-            {%- endif %}
-        {%- endif %}
-    {%- endfor -%}
-{% endif %}
+{%- endfor %}
         ],
         "loggers": [
             {
@@ -88,20 +70,16 @@
                 "severity": "INFO",
                 "debuglevel": 0
             }
-        ]{%- if has_port_config.flag -%},
+        ]{%- if client_classes -%},
         "client-classes": [
             {%- set add_preceding_comma = { 'flag': False } %}
-            {%- for dhcp_interface_value in port_ips.values() %}
-                {%- for intf_value in dhcp_interface_value.values() %}
-                    {%- for intf in intf_value if intf != "subnet" %}
-                        {%- if add_preceding_comma.flag %},{% endif -%}
-                        {% set _dummy = add_preceding_comma.update({'flag': True}) %}
+            {%- for class in client_classes %}
+                {%- if add_preceding_comma.flag -%},{%- endif -%}
+                {%- set _dummy = add_preceding_comma.update({'flag': True}) %}
             {
-                "name": "{{hostname}}:{{intf}}",
-                "test": "relay4[1].hex == '{{hostname}}:{{intf}}'"
+                "name": "{{ class["name"] }}",
+                "test": "{{ class["condition"] }}"
             }
-                    {%- endfor %}
-                {%- endfor %}
             {%- endfor %}
         ]
         {%- endif %}

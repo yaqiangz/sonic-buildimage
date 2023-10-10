@@ -36,7 +36,7 @@ class DhcpServd(object):
             from_db: boolean, if set to True, generate config from running config_db
             config_file_path: str, if from_db is False, generate config from config_db file
         """
-        kea_dhcp4_config = self.dhcp_cfg.generate_kea_dhcp4_config()
+        kea_dhcp4_config = self.dhcp_cfg.generate()
         if kea_dhcp4_config is None:
             syslog.syslog(syslog.LOG_ERR, "Cannot get kea-dhcp4 configure")
             return
@@ -52,6 +52,7 @@ class DhcpServd(object):
 
         # TODO Add config db subcribe to re-generate kea-dhcp4 config after config_db change.
 
+    def wait(self):
         while True:
             time.sleep(5)
 
@@ -61,6 +62,7 @@ def main():
     dhcp_cfg_generator = DhcpServCfgGenerator(dhcp_db_connector)
     dhcpservd = DhcpServd(dhcp_cfg_generator, dhcp_db_connector)
     dhcpservd.start()
+    dhcpservd.wait()
 
 
 if __name__ == "__main__":
