@@ -32,14 +32,8 @@ class DhcpServd(object):
     def dump_dhcp4_config(self):
         """
         Generate kea-dhcp4 config file and dump it to config folder
-        Args:
-            from_db: boolean, if set to True, generate config from running config_db
-            config_file_path: str, if from_db is False, generate config from config_db file
         """
         kea_dhcp4_config = self.dhcp_cfg.generate()
-        if kea_dhcp4_config is None:
-            syslog.syslog(syslog.LOG_ERR, "Cannot get kea-dhcp4 configure")
-            return
         with open(KEA_DHCP4_CONFIG, "w") as write_file:
             write_file.write(kea_dhcp4_config)
             # After refresh kea-config, we need to SIGHUP kea-dhcp4 process to read new config
