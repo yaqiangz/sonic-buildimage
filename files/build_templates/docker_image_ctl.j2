@@ -191,6 +191,9 @@ function postStartAction()
                    ip link add name ns-eth1"$NET_NS" type veth peer name eth1@"$NET_NS"
                    ip link set dev eth1@"$NET_NS" master br1
                    ip link set dev eth1@"$NET_NS" up
+                   # For chassis system where Linux bridge is used on supervisor for midplane communication
+                   # assign alternate name as eth1-midplane for generic design
+                   ip link property add dev br1 altname eth1-midplane
            else
                    ip link add name ns-eth1"$NET_NS" link eth1-midplane type macvlan mode bridge
            fi
@@ -248,6 +251,12 @@ function postStartAction()
                 else
                     $SONIC_CFGGEN -j /etc/sonic/config_db$DEV.json --write-to-db
                 fi
+            fi
+
+            if [[ "$BOOT_TYPE" == "fast" ]]; then
+                # this is the case when base OS version does not support fast-reboot with reconciliation logic (dump.rdb is absent)
+                # In this case, we need to set the flag to indicate fast-reboot is in progress. Set the key to expire in 3 minutes
+                $SONIC_DB_CLI STATE_DB SET "FAST_REBOOT|system" "1" "EX" "180"
             fi
         fi
 
@@ -378,6 +387,18 @@ start() {
         MOUNTPATH="$MOUNTPATH/$DEV"
     fi
     {%- endif %}
+
+    {%- if docker_container_name == "swss" %}
+    # Insert "create_only_config_db_buffers" attribute
+    HWSKU_FOLDER="/usr/share/sonic/device/$PLATFORM/$HWSKU"
+    if [ -d "$HWSKU_FOLDER" ]; then
+        CREATE_ONLY_CONFIG_DB_BUFFERS_JSON="$HWSKU_FOLDER/create_only_config_db_buffers.json"
+        if [ -f "$CREATE_ONLY_CONFIG_DB_BUFFERS_JSON" ]; then
+            $SONIC_CFGGEN -j $CREATE_ONLY_CONFIG_DB_BUFFERS_JSON --write-to-db
+        fi
+    fi
+    {%- endif %}
+
     DOCKERCHECK=`docker inspect --type container ${DOCKERNAME} 2>/dev/null`
     if [ "$?" -eq "0" ]; then
         {%- if docker_container_name == "database" %}
