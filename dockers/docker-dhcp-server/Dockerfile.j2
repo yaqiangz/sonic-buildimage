@@ -50,6 +50,8 @@ RUN cd /usr/local/sbin && rm -f kea-admin kea-ctrl-agent kea-dhcp-ddns kea-dhcp6
 # Remove hook lib we don't need
 RUN cd /usr/local/lib/kea/hooks && rm -f libdhcp_bootp.so libdhcp_flex_option.so libdhcp_stat_cmds.so
 RUN pip3 install psutil
+# TODO issue on remote rsyslog server in non-host container
+RUN rm -f /etc/supervisor/conf.d/containercfgd.conf
 
 {% if docker_dhcp_server_debs.strip() -%}
 # Copy locally-built Debian package dependencies

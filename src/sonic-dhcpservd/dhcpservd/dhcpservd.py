@@ -1,10 +1,7 @@
 #!/usr/bin/env python
-import json
 import psutil
 import signal
-import syslog
 import time
-from swsscommon import swsscommon
 from .dhcp_cfggen import DhcpServCfgGenerator
 from .dhcp_lease import LeaseManager
 from .dhcp_server_utils import DhcpDbConnector
@@ -16,9 +13,10 @@ REDIS_SOCK_PATH = "/var/run/redis/redis.sock"
 
 
 class DhcpServd(object):
-    def __init__(self, dhcp_cfg, db_connector):
-        self.dhcp_cfg = dhcp_cfg
+    def __init__(self, dhcp_cfg_generator, db_connector, kea_dhcp4_config_path=KEA_DHCP4_CONFIG):
+        self.dhcp_cfg_generator = dhcp_cfg_generator
         self.db_connector = db_connector
+        self.kea_dhcp4_config_path = kea_dhcp4_config_path
 
     def _notify_kea_dhcp4_proc(self):
         """
@@ -33,8 +31,8 @@ class DhcpServd(object):
         """
         Generate kea-dhcp4 config file and dump it to config folder
         """
-        kea_dhcp4_config = self.dhcp_cfg.generate()
-        with open(KEA_DHCP4_CONFIG, "w") as write_file:
+        kea_dhcp4_config = self.dhcp_cfg_generator.generate()
+        with open(self.kea_dhcp4_config_path, "w") as write_file:
             write_file.write(kea_dhcp4_config)
             # After refresh kea-config, we need to SIGHUP kea-dhcp4 process to read new config
             self._notify_kea_dhcp4_proc()

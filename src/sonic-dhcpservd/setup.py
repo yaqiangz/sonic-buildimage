@@ -1,6 +1,8 @@
 from setuptools import setup
 
-dependencies = []
+dependencies = [
+    "psutil"
+]
 
 test_deps = [
     "pytest"
