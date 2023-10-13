@@ -1,7 +1,8 @@
 from setuptools import setup
 
 dependencies = [
-    "psutil"
+    "psutil",
+    "coverage"
 ]
 
 test_deps = [

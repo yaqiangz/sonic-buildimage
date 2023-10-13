@@ -87,11 +87,13 @@ def _parse_table_to_dict(table):
     ret = {}
     for key in table.getKeys():
         entry = get_entry(table, key)
+        new_entry = {}
+
         for field, value in entry.items():
             # if value of this field is list, field end with @, so cannot found by hget
             if table.hget(key, field)[0]:
-                entry[field] = value
+                new_entry[field] = value
             else:
-                entry[field] = value.split(",")
-        ret[key] = entry
+                new_entry[field] = value.split(",")
+        ret[key] = new_entry
     return ret

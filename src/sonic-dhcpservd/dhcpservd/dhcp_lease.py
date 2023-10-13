@@ -67,7 +67,6 @@ class LeaseHanlder(object):
         old_lease_table = self.db_connector.get_state_db_table(DHCP_SERVER_IPV4_LEASE)
         old_lease_key = set(old_lease_table.keys())
 
-        # Update/Add new lease
         # 1.1 If start time equal to end time, means lease has been released
         #     1.1.1 If current lease table has this old lease, delete it
         #     1.1.2 Else skip
@@ -84,7 +83,7 @@ class LeaseHanlder(object):
         for key in old_lease_key:
             if key not in new_lease.keys():
                 # Delete entry
-                self.db_connector.state_db.delete(key)
+                self.db_connector.state_db.delete("{}|{}".format(DHCP_SERVER_IPV4_LEASE, key))
         self.last_update_time = datetime.now()
         self.lock.release()
 

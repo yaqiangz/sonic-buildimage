@@ -24,25 +24,20 @@ DEFAULT_LEASE_TIME = 900
 
 
 class DhcpServCfgGenerator(object):
+    port_alias_map = {}
+    lease_update_script_path = ""
+    lease_path = ""
+
     def __init__(self, dhcp_db_connector, lease_path=DEFAULT_LEASE_PATH, port_map_path=PORT_MAP_PATH,
                  lease_update_script_path=LEASE_UPDATE_SCRIPT_PATH,
                  kea_conf_template_path=KEA_DHCP4_CONF_TEMPLATE_PATH):
-        # Read port alias map file, this file is render after container start, so it would not change any more
-        self.port_alias_map = {}
         self.db_connector = dhcp_db_connector
-        with open(port_map_path, "r") as file:
-            lines = file.readlines()
-            for line in lines:
-                splits = line.strip().split(" ")
-                if len(splits) != 2:
-                    continue
-                self.port_alias_map[splits[0]] = splits[1]
-        # Get kea config template
-        # Semgrep does not allow to use jinja2 directly, but we do need jinja2 for SONiC
-        env = Environment(loader=FileSystemLoader(os.path.dirname(kea_conf_template_path)))  # nosemgrep
-        self.kea_template = env.get_template(os.path.basename(kea_conf_template_path))
         self.lease_path = lease_path
         self.lease_update_script_path = lease_update_script_path
+        # Read port alias map file, this file is render after container start, so it would not change any more
+        self._parse_port_map_alias(port_map_path)
+        # Get kea config template
+        self._get_render_template(kea_conf_template_path)
 
     def generate(self):
         """
@@ -53,29 +48,55 @@ class DhcpServCfgGenerator(object):
         # Generate from running config_db
         # Get host name
         device_metadata = self.db_connector.get_config_db_table("DEVICE_METADATA")
-        localhost_entry = device_metadata.get("localhost", {})
-        if localhost_entry is None or "hostname" not in localhost_entry:
-            syslog.syslog(syslog.LOG_ERR, "Cannot get hostname")
-            raise Exception("Cannot get hostname")
-        hostname = localhost_entry["hostname"]
+        hostname = self._parse_hostname(device_metadata)
         # Get ip information of vlan
         vlan_interface = self.db_connector.get_config_db_table("VLAN_INTERFACE")
-        vlan_interface_keys = vlan_interface.keys()
-        vlan_interfaces = self._get_vlan_ipv4_interface(vlan_interface_keys)
-        dhcp_server_ipv4, customized_options_ipv4, range_ipv4, port_ipv4 = self._get_dhcp_ipv4_tables_from_db()
         vlan_member_table = self.db_connector.get_config_db_table("VLAN_MEMBER")
-        vlan_members = vlan_member_table.keys()
+        vlan_interfaces, vlan_members = self._parse_vlan(vlan_interface, vlan_member_table)
 
+        dhcp_server_ipv4, customized_options_ipv4, range_ipv4, port_ipv4 = self._get_dhcp_ipv4_tables_from_db()
         # Parse range table
         ranges = self._parse_range(range_ipv4)
 
         # TODO Add support for customizing options
-        # Parse customized options table
-        # customized_options = self._parse_customized_options(customized_options_ipv4)
 
         # Parse port table
         port_ips = self._parse_port(port_ipv4, vlan_interfaces, vlan_members, ranges)
+        render_obj = self._construct_obj_for_template(dhcp_server_ipv4, port_ips, hostname)
 
+        return self._render_config(render_obj)
+
+    def _render_config(self, render_obj):
+        output = self.kea_template.render(render_obj)
+        return output
+
+    def _parse_vlan(self, vlan_interface, vlan_member):
+        vlan_interfaces = self._get_vlan_ipv4_interface(vlan_interface.keys())
+        vlan_members = vlan_member.keys()
+        return vlan_interfaces, vlan_members
+
+    def _parse_hostname(self, device_metadata):
+        localhost_entry = device_metadata.get("localhost", {})
+        if localhost_entry is None or "hostname" not in localhost_entry:
+            syslog.syslog(syslog.LOG_ERR, "Cannot get hostname")
+            raise Exception("Cannot get hostname")
+        return localhost_entry["hostname"]
+
+    def _get_render_template(self, kea_conf_template_path):
+        # Semgrep does not allow to use jinja2 directly, but we do need jinja2 for SONiC
+        env = Environment(loader=FileSystemLoader(os.path.dirname(kea_conf_template_path)))  # nosemgrep
+        self.kea_template = env.get_template(os.path.basename(kea_conf_template_path))
+
+    def _parse_port_map_alias(self, port_map_path):
+        with open(port_map_path, "r") as file:
+            lines = file.readlines()
+            for line in lines:
+                splits = line.strip().split(" ")
+                if len(splits) != 2:
+                    continue
+                self.port_alias_map[splits[0]] = splits[1]
+
+    def _construct_obj_for_template(self, dhcp_server_ipv4, port_ips, hostname):
         subnets = []
         client_classes = []
         for dhcp_interface_name, dhcp_config in dhcp_server_ipv4.items():
@@ -118,8 +139,7 @@ class DhcpServCfgGenerator(object):
             "lease_update_script_path": self.lease_update_script_path,
             "lease_path": self.lease_path
         }
-        output = self.kea_template.render(render_obj)
-        return output
+        return render_obj
 
     def _get_dhcp_ipv4_tables_from_db(self):
         """
@@ -161,7 +181,7 @@ class DhcpServCfgGenerator(object):
             # Skip ipv6
             if network.version != 4:
                 continue
-            if key not in ret:
+            if splits[0] not in ret:
                 ret[splits[0]] = []
             ret[splits[0]].append({"network": network, "ip": splits[1]})
         return ret
@@ -191,21 +211,6 @@ class DhcpServCfgGenerator(object):
             ranges[range] = [range_start, range_end]
 
         return ranges
-
-    def _parse_customized_options(self, customized_options_ipv4):
-        """
-        Parse content in DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS table.
-        Args:
-            customized_options_ipv4: Table object or dict of customized options.
-        Returns:
-            Option dict
-        """
-        # TODO validate option type
-        customized_options = {}
-        for option in list(customized_options_ipv4.keys()):
-            customized_options[option] = customized_options_ipv4.get(option, {})
-
-        return customized_options
 
     def _match_range_network(self, dhcp_interface, dhcp_interface_name, port, range, port_ips):
         """
