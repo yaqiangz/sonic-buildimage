@@ -1,10 +1,11 @@
+import copy
 import ipaddress
 import json
 import pytest
 from common_utils import MockConfigDb
 from dhcpservd.dhcp_server_utils import DhcpDbConnector
 from dhcpservd.dhcp_cfggen import DhcpServCfgGenerator
-from unittest.mock import patch, MagicMock, call
+from unittest.mock import patch, MagicMock
 
 expected_dhcp_config = {
     "Dhcp4": {
@@ -229,16 +230,15 @@ def test_parse_vlan(mock_swsscommon_dbconnector_init, mock_parse_port_map_alias,
 @pytest.mark.parametrize("test_config_db", ["mock_config_db.json", "mock_config_db_without_port_config.json"])
 def test_parse_port(test_config_db, mock_swsscommon_dbconnector_init, mock_get_render_template,
                     mock_parse_port_map_alias):
-    with patch("dhcpservd.dhcp_cfggen.open", MagicMock()) as mock_write:
-        mock_config_db = MockConfigDb(config_db_path="tests/test_data/{}".format(test_config_db))
-        dhcp_db_connector = DhcpDbConnector()
-        dhcp_cfg_generator = DhcpServCfgGenerator(dhcp_db_connector)
-        tested_vlan_interfaces = expected_vlan_ipv4_interface
-        tested_ranges = expected_parsed_range
-        ipv4_port = mock_config_db.config_db.get("DHCP_SERVER_IPV4_PORT")
-        vlan_members = mock_config_db.config_db.get("VLAN_MEMBER").keys()
-        parse_result = dhcp_cfg_generator._parse_port(ipv4_port, tested_vlan_interfaces, vlan_members, tested_ranges)
-        assert parse_result == (expected_parsed_port if test_config_db == "mock_config_db.json" else {})
+    mock_config_db = MockConfigDb(config_db_path="tests/test_data/{}".format(test_config_db))
+    dhcp_db_connector = DhcpDbConnector()
+    dhcp_cfg_generator = DhcpServCfgGenerator(dhcp_db_connector)
+    tested_vlan_interfaces = expected_vlan_ipv4_interface
+    tested_ranges = expected_parsed_range
+    ipv4_port = mock_config_db.config_db.get("DHCP_SERVER_IPV4_PORT")
+    vlan_members = mock_config_db.config_db.get("VLAN_MEMBER").keys()
+    parse_result = dhcp_cfg_generator._parse_port(ipv4_port, tested_vlan_interfaces, vlan_members, tested_ranges)
+    assert parse_result == (expected_parsed_port if test_config_db == "mock_config_db.json" else {})
 
 
 def test_construct_obj_for_template(mock_swsscommon_dbconnector_init, mock_parse_port_map_alias,
@@ -252,10 +252,14 @@ def test_construct_obj_for_template(mock_swsscommon_dbconnector_init, mock_parse
     assert render_obj == expected_render_obj
 
 
-def test_render_config(mock_swsscommon_dbconnector_init, mock_parse_port_map_alias):
+@pytest.mark.parametrize("with_port_config", [True, False])
+def test_render_config(mock_swsscommon_dbconnector_init, mock_parse_port_map_alias, with_port_config):
     dhcp_db_connector = DhcpDbConnector()
     dhcp_cfg_generator = DhcpServCfgGenerator(dhcp_db_connector,
                                               kea_conf_template_path="tests/test_data/kea-dhcp4.conf.j2")
-    render_obj = expected_render_obj
+    render_obj = copy.deepcopy(expected_render_obj)
+    if not with_port_config:
+        render_obj["client_classes"] = []
+        render_obj["subnets"] = []
     config = dhcp_cfg_generator._render_config(render_obj)
-    assert json.loads(config) == expected_dhcp_config
+    assert json.loads(config) == expected_dhcp_config if with_port_config else expected_dhcp_config_without_port_config
