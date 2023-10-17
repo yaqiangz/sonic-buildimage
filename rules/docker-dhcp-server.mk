@@ -48,5 +48,6 @@ $(DOCKER_DHCP_SERVER)_CONTAINER_TMPFS += /var/tmp/
 $(DOCKER_DHCP_SERVER)_CLI_CONFIG_PLUGIN = /cli/config/plugins/dhcp_server.py
 $(DOCKER_DHCP_SERVER)_CLI_SHOW_PLUGIN = /cli/show/plugins/show_dhcp_server.py
 $(DOCKER_DHCP_SERVER)_CLI_CLEAR_PLUGIN = /cli/clear/plugins/clear_dhcp_server.py
+$(DOCKER_DHCP_SERVER)_SUPPORT_RATE_LIMIT = false
 
 $(DOCKER_DHCP_SERVER)_FILES += $(SUPERVISOR_PROC_EXIT_LISTENER_SCRIPT)
