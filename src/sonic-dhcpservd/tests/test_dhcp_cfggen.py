@@ -239,27 +239,6 @@ def test_parse_port(test_config_db, mock_swsscommon_dbconnector_init, mock_get_r
         vlan_members = mock_config_db.config_db.get("VLAN_MEMBER").keys()
         parse_result = dhcp_cfg_generator._parse_port(ipv4_port, tested_vlan_interfaces, vlan_members, tested_ranges)
         assert parse_result == (expected_parsed_port if test_config_db == "mock_config_db.json" else {})
-        # Verify whether new configuration was written to file
-        if test_config_db == "mock_config_db.json":
-            mock_write.assert_has_calls([
-                call("/tmp/dhcp_server_ip_ports.json", "w"),
-                call().__enter__(),
-                call().__enter__().write('{'),
-                call().__enter__().write('\n    '),
-                call().__enter__().write('"192.168.0.0/21"'),
-                call().__enter__().write(': '),
-                call().__enter__().write('"Vlan1000"'),
-                call().__enter__().write('\n'),
-                call().__enter__().write('}'),
-                call().__exit__(None, None, None)
-            ])
-        else:
-            mock_write.assert_has_calls([
-                call("/tmp/dhcp_server_ip_ports.json", "w"),
-                call().__enter__(),
-                call().__enter__().write('{}'),
-                call().__exit__(None, None, None)
-            ])
 
 
 def test_construct_obj_for_template(mock_swsscommon_dbconnector_init, mock_parse_port_map_alias,

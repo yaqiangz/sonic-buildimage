@@ -15,7 +15,6 @@ DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS = "DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS"
 DHCP_SERVER_IPV4_RANGE = "DHCP_SERVER_IPV4_RANGE"
 DHCP_SERVER_IPV4_PORT = "DHCP_SERVER_IPV4_PORT"
 DHCP_SERVER_IPV4_LEASE = "DHCP_SERVER_IPV4_LEASE"
-DHCP_SERVER_IP_PORTS_FILE = "/tmp/dhcp_server_ip_ports.json"
 LEASE_UPDATE_SCRIPT_PATH = "/etc/kea/lease_update.sh"
 DEFAULT_LEASE_PATH = "/tmp/kea-lease.csv"
 KEA_DHCP4_CONF_TEMPLATE_PATH = "/usr/share/sonic/templates/kea-dhcp4.conf.j2"
@@ -328,7 +327,4 @@ class DhcpServCfgGenerator(object):
                     ranges = merge_intervals(ip_range)
                     ranges = [[str(range[0]), str(range[1])] for range in ranges]
                     port_ips[dhcp_interface_name][dhcp_interface_ip][port_name] = ranges
-        # Store network - dhcp port map file which would be used by dhcpservd while updating lease table
-        with open(DHCP_SERVER_IP_PORTS_FILE, "w") as write_file:
-            json.dump(ip_ports, write_file, indent=4, ensure_ascii=False)
         return port_ips

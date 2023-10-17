@@ -13,7 +13,17 @@ expected_lease = {
         "lease_start": "1693997315",
         "lease_end": "1694000915",
         "ip": "192.168.0.131"
+    },
+    "Vlan2000|10:70:fd:b6:13:15": {
+        "lease_start": "1693995705",
+        "lease_end": "1693999305",
+        "ip": "193.168.2.2"
     }
+}
+expected_fdb_info = {
+    "10:70:fd:b6:13:00": "Vlan1000",
+    "10:70:fd:b6:13:15": "Vlan2000",
+    "10:70:fd:b6:13:17": "Vlan1000",
 }
 
 
@@ -27,12 +37,29 @@ def test_read_kea_lease_with_file_not_found(mock_swsscommon_dbconnector_init):
 
 
 def test_read_kea_lease(mock_swsscommon_dbconnector_init):
-    db_connector = DhcpDbConnector()
-    kea_lease_handler = KeaDhcp4LeaseHandler(db_connector, lease_file="tests/test_data/kea-lease.csv",
-                                             ip_ports_file="tests/test_data/dhcp_server_ip_ports.json")
-    # Verify whether lease information read is as expected
-    lease = kea_lease_handler._read()
-    assert lease == expected_lease
+    tested_fdb_info = expected_fdb_info
+    with patch.object(KeaDhcp4LeaseHandler, "_get_fdb_info", return_value=tested_fdb_info):
+        db_connector = DhcpDbConnector()
+        kea_lease_handler = KeaDhcp4LeaseHandler(db_connector, lease_file="tests/test_data/kea-lease.csv")
+        # Verify whether lease information read is as expected
+        lease = kea_lease_handler._read()
+        print(lease)
+        print(expected_lease)
+        assert lease == expected_lease
+
+
+def test_get_fdb_info(mock_swsscommon_dbconnector_init):
+    mock_fdb_table = {
+        "Vlan2000:10:70:fd:b6:13:15": {"port": "Ethernet31", "type": "dynamic"},
+        "Vlan1000:10:70:fd:b6:13:00": {"port": "Ethernet32", "type": "dynamic"},
+        "Vlan1000:10:70:fd:b6:13:17": {"port": "Ethernet32", "type": "dynamic"}
+    }
+    with patch("dhcpservd.dhcp_server_utils.DhcpDbConnector.get_state_db_table", return_value=mock_fdb_table):
+        db_connector = DhcpDbConnector()
+        kea_lease_handler = KeaDhcp4LeaseHandler(db_connector, lease_file="tests/test_data/kea-lease.csv")
+        # Verify whether lease information read is as expected
+        fdb_info = kea_lease_handler._get_fdb_info()
+        assert fdb_info == expected_fdb_info
 
 
 def test_update_kea_lease(mock_swsscommon_dbconnector_init, mock_swsscommon_table_init):
@@ -42,7 +69,8 @@ def test_update_kea_lease(mock_swsscommon_dbconnector_init, mock_swsscommon_tabl
          patch.object(KeaDhcp4LeaseHandler, "_read", MagicMock(return_value=tested_lease)), \
          patch.object(DhcpDbConnector, "get_state_db_table",
                       return_value={"Vlan1000|aa:bb:cc:dd:ee:ff": {}, "Vlan1000|10:70:fd:b6:13:00": {}}), \
-         patch.object(swsscommon.DBConnector, "delete") as mock_delete:
+         patch.object(swsscommon.DBConnector, "delete") as mock_delete, \
+         patch("time.sleep", return_value=None) as mock_sleep:
         db_connector = DhcpDbConnector()
         kea_lease_handler = KeaDhcp4LeaseHandler(db_connector)
         kea_lease_handler.update_lease()
@@ -59,6 +87,7 @@ def test_update_kea_lease(mock_swsscommon_dbconnector_init, mock_swsscommon_tabl
             call('DHCP_SERVER_IPV4_LEASE|Vlan1000|10:70:fd:b6:13:17', 'ip', '192.168.0.131')
         ])
         kea_lease_handler.update_lease()
+        mock_sleep.assert_called_once_with(2)
 
 
 def test_no_implement(mock_swsscommon_dbconnector_init):
