@@ -3,8 +3,8 @@ import ipaddress
 import json
 import pytest
 from common_utils import MockConfigDb
-from dhcpservd.dhcp_server_utils import DhcpDbConnector
-from dhcpservd.dhcp_cfggen import DhcpServCfgGenerator
+from dhcp_server.dhcp_server_utils import DhcpDbConnector
+from dhcp_server.dhcp_cfggen import DhcpServCfgGenerator
 from unittest.mock import patch, MagicMock
 
 expected_dhcp_config = {

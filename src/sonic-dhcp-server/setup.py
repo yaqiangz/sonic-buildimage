@@ -16,7 +16,7 @@ py_modules = [
 ]
 
 setup(
-    name="sonic-dhcpservd",
+    name="sonic-dhcp-server",
     install_requires=dependencies,
     description="Module of SONiC built-in dhcp_server",
     version="1.0",
@@ -29,11 +29,11 @@ setup(
         "wheel",
     ],
     packages=[
-        "dhcpservd"
+        "dhcp_server"
     ],
     entry_points={
         "console_scripts": [
-            "dhcpservd = dhcpservd.dhcpservd:main"
+            "dhcpservd = dhcp_server.dhcpservd:main"
         ]
     },
     py_modules=py_modules,

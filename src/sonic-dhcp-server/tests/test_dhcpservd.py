@@ -1,15 +1,15 @@
 import pytest
 import psutil
 import signal
-from dhcpservd.dhcp_server_utils import DhcpDbConnector
-from dhcpservd.dhcp_cfggen import DhcpServCfgGenerator
-from dhcpservd.dhcpservd import DhcpServd
+from dhcp_server.dhcp_server_utils import DhcpDbConnector
+from dhcp_server.dhcp_cfggen import DhcpServCfgGenerator
+from dhcp_server.dhcpservd import DhcpServd
 from unittest.mock import patch, call, MagicMock
 
 
 def test_dump_dhcp4_config(mock_swsscommon_dbconnector_init):
-    with patch("dhcpservd.dhcp_cfggen.DhcpServCfgGenerator.generate", return_value="dummy_config") as mock_generate, \
-         patch("dhcpservd.dhcpservd.DhcpServd._notify_kea_dhcp4_proc", MagicMock()) as mock_notify_kea_dhcp4_proc:
+    with patch("dhcp_server.dhcp_cfggen.DhcpServCfgGenerator.generate", return_value="dummy_config") as mock_generate, \
+         patch("dhcp_server.dhcpservd.DhcpServd._notify_kea_dhcp4_proc", MagicMock()) as mock_notify_kea_dhcp4_proc:
         dhcp_db_connector = DhcpDbConnector()
         dhcp_cfg_generator = DhcpServCfgGenerator(dhcp_db_connector,
                                                   port_map_path="tests/test_data/port-name-alias-map.txt",

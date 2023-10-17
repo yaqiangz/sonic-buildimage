@@ -1,4 +1,4 @@
-import dhcpservd.dhcp_server_utils as dhcp_server_utils
+import dhcp_server.dhcp_server_utils as dhcp_server_utils
 import ipaddress
 import pytest
 from swsscommon import swsscommon

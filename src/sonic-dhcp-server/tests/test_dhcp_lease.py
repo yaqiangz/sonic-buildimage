@@ -1,5 +1,5 @@
-from dhcpservd.dhcp_server_utils import DhcpDbConnector
-from dhcpservd.dhcp_lease import KeaDhcp4LeaseHandler, LeaseHanlder
+from dhcp_server.dhcp_server_utils import DhcpDbConnector
+from dhcp_server.dhcp_lease import KeaDhcp4LeaseHandler, LeaseHanlder
 from swsscommon import swsscommon
 from unittest.mock import patch, call, MagicMock
 
@@ -54,7 +54,7 @@ def test_get_fdb_info(mock_swsscommon_dbconnector_init):
         "Vlan1000:10:70:fd:b6:13:00": {"port": "Ethernet32", "type": "dynamic"},
         "Vlan1000:10:70:fd:b6:13:17": {"port": "Ethernet32", "type": "dynamic"}
     }
-    with patch("dhcpservd.dhcp_server_utils.DhcpDbConnector.get_state_db_table", return_value=mock_fdb_table):
+    with patch("dhcp_server.dhcp_server_utils.DhcpDbConnector.get_state_db_table", return_value=mock_fdb_table):
         db_connector = DhcpDbConnector()
         kea_lease_handler = KeaDhcp4LeaseHandler(db_connector, lease_file="tests/test_data/kea-lease.csv")
         # Verify whether lease information read is as expected
