@@ -1,12 +1,12 @@
 from setuptools import setup
 
 dependencies = [
-    "psutil",
-    "coverage"
+    "psutil"
 ]
 
 test_deps = [
-    "pytest"
+    "pytest",
+    "freezegun"
 ]
 
 py_modules = [
@@ -33,7 +33,8 @@ setup(
     ],
     entry_points={
         "console_scripts": [
-            "dhcpservd = dhcp_server.dhcpservd:main"
+            "dhcpservd = dhcp_server.dhcpservd:main",
+            "dhcprelayd = dhcp_server.dhcprelayd:main"
         ]
     },
     py_modules=py_modules,

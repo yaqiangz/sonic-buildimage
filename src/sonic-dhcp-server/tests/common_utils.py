@@ -10,3 +10,8 @@ class MockConfigDb(object):
 
     def get_config_db_table(self, table_name):
         return self.config_db.get(table_name, {})
+
+
+def mock_get_config_db_table(table_name):
+    mock_config_db = MockConfigDb()
+    return mock_config_db.get_config_db_table(table_name)
