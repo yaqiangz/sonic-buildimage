@@ -13,11 +13,7 @@ ENV IMAGE_VERSION=$image_version
 # Update apt's cache of available packages
 RUN apt-get update
 
-RUN apt-get install -y libjsoncpp-dev {%- if INCLUDE_DHCP_SERVER == "y" %} python3-dev{%- endif %}
-
-{% if INCLUDE_DHCP_SERVER == "y" -%}
-RUN pip3 install psutil
-{%- endif %}
+RUN apt-get install -y libjsoncpp-dev
 
 {% if docker_dhcp_relay_debs.strip() -%}
 # Copy built Debian packages
@@ -36,9 +32,6 @@ RUN pip3 install psutil
 {% endif %}
 
 # Clean up
-{% if INCLUDE_DHCP_SERVER == "y" -%}
-RUN apt-get remove -y python3-dev
-{%- endif %}
 RUN apt-get clean -y         && \
     apt-get autoclean -y     && \
     apt-get autoremove -y    && \

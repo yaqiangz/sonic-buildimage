@@ -1,6 +1,7 @@
 import pytest
 import psutil
 import signal
+from common_utils import MockProc
 from dhcp_server.dhcp_server_utils import DhcpDbConnector
 from dhcp_server.dhcp_cfggen import DhcpServCfgGenerator
 from dhcp_server.dhcpservd import DhcpServd
@@ -78,14 +79,3 @@ class MockIntf(object):
     def __init__(self, family, address):
         self.family = family
         self.address = address
-
-
-class MockProc(object):
-    def __init__(self, name):
-        self.proc_name = name
-
-    def name(self):
-        return self.proc_name
-
-    def send_signal(self, sig_num):
-        pass

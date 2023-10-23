@@ -54,9 +54,7 @@ def test_get_config_db_table(mock_swsscommon_dbconnector_init, mock_swsscommon_t
          patch.object(swsscommon.Table, "hget", side_effect=mock_hget):
         ret = dhcp_db_connector.get_config_db_table("VLAN")
         mock_swsscommon_table_init.assert_called_once_with(dhcp_db_connector.config_db, "VLAN")
-        print(ret)
         mock_get_keys.assert_called_once_with()
-        print(ret)
         assert ret == {
             "key1": {"list": ["1", "2"], "value": "3,4"},
             "key2": {"list": ["1", "2"], "value": "3,4"}

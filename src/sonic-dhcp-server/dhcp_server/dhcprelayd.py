@@ -23,6 +23,11 @@ NOT_FOUND_PROC = 3
 
 
 class DhcpRelayd(object):
+    sel = None
+    subscribe_dhcp_server_table = None
+    subscribe_vlan_table = None
+    dhcp_interfaces_state = {}
+
     def __init__(self, db_connector, select_timeout=DEFAULT_SELECT_TIMEOUT):
         """
         Args:
@@ -92,12 +97,20 @@ class DhcpRelayd(object):
                 if key in self.dhcp_interfaces_state and value == self.dhcp_interfaces_state[key]:
                     return
                 break
+        # For del operation, we can skip disabled change
+        if op == "DEL":
+            if key not in self.dhcp_interfaces_state:
+                return
         self.refresh_dhcrelay()
 
     def _vlan_update_event(self):
-        key, _, _ = self.subscribe_vlan_table.pop()
+        key, op, _ = self.subscribe_vlan_table.pop()
         # For vlan doesn't have related dhcp entry, not need to refresh dhcrelay process
         if key not in self.dhcp_interfaces_state:
+            return
+        if self.dhcp_interfaces_state[key] == "disabled":
+            if op == "DEL":
+                del self.dhcp_interfaces_state[key]
             return
         self.refresh_dhcrelay()
 
@@ -154,7 +167,7 @@ class DhcpRelayd(object):
 
         # No need to kill
         if process_name == "dhcrelay" and old_dhcp_interfaces == new_dhcp_interfaces or \
-           process_name == "dhcpmon" and old_dhcp_interfaces.issubset(new_dhcp_interfaces):
+           process_name == "dhcpmon" and old_dhcp_interfaces == (new_dhcp_interfaces):
             return NOT_KILLED
 
         target_proc.kill()
