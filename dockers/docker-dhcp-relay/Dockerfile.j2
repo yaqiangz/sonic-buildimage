@@ -15,11 +15,7 @@ RUN apt-get update
 
 RUN apt-get install -y libjsoncpp-dev {%- if INCLUDE_DHCP_SERVER == "y" %}\
                        python3-dev         \
-                       automake            \
-                       libtool             \
-                       pkg-config          \
-                       build-essential     \
-                       ccache{%- endif %}
+                       build-essential{%- endif %}
 
 {% if INCLUDE_DHCP_SERVER == "y" -%}
 RUN pip3 install psutil
@@ -45,12 +41,8 @@ RUN apt-get install -y libjsoncpp-dev
 
 # Clean up
 {% if INCLUDE_DHCP_SERVER == "y" -%}
-RUN apt-get remove -y automake      \
-                libtool             \
-                pkg-config          \
-                build-essential     \
-                python3-dev         \
-                ccache
+RUN apt-get remove -y build-essential     \
+                python3-dev
 {%- endif %}
 RUN apt-get clean -y         && \
     apt-get autoclean -y     && \

@@ -1,5 +1,5 @@
 from dhcp_server.dhcp_server_utils import DhcpDbConnector
-from dhcp_server.dhcp_lease import KeaDhcp4LeaseHandler, LeaseHanlder, datetime
+from dhcp_server.dhcp_lease import KeaDhcp4LeaseHandler, LeaseHanlder
 from freezegun import freeze_time
 from swsscommon import swsscommon
 from unittest.mock import patch, call, MagicMock
@@ -66,6 +66,7 @@ def test_get_fdb_info(mock_swsscommon_dbconnector_init):
         # Verify whether lease information read is as expected
         fdb_info = kea_lease_handler._get_fdb_info()
         assert fdb_info == expected_fdb_info
+
 
 # Cannot mock built-in/extension type function(datetime.datetime.timestamp), need to free time
 @freeze_time("2023-09-08")

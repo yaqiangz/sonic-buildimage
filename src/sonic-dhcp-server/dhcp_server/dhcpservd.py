@@ -30,6 +30,8 @@ class DhcpServd(object):
             if KEA_DHCP4_PROC_NAME in proc.name():
                 proc.send_signal(signal.SIGHUP)
                 break
+        else:
+            syslog.syslog(syslog.LOG_WARNING, "Cannot find process: {}".format(KEA_DHCP4_PROC_NAME))
 
     def dump_dhcp4_config(self):
         """

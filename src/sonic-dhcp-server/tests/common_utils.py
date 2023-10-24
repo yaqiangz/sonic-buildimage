@@ -38,7 +38,7 @@ class MockSubscribeTable(object):
             heapq.heappush(self.stack, ("Vlan1001", "DEL", (("vlanid", "1001"),)))
             heapq.heappush(self.stack, ("Vlan1002", "SET", (("vlanid", "1002"),)))
             heapq.heappush(self.stack, ("Vlan2000", "SET", (("vlanid", "2000"),)))
-    
+
     def pop(self):
         res = heapq.heappop(self.stack)
         return res
@@ -65,6 +65,9 @@ class MockProc(object):
                     "/tmp/port-name-alias-map.txt", "-id", "Vlan1000", "-iu", "docker0", "240.127.1.2"]
         if self.proc_name == "dhcpmon":
             return ["/usr/sbin/dhcpmon", "-id", "Vlan1000", "-iu", "docker0", "-im", "eth0"]
-    
-    def kill(self):
+
+    def terminate(self):
+        pass
+
+    def wait(self):
         pass

@@ -167,22 +167,30 @@ class TestJ2Files(TestCase):
         self.assertTrue(utils.cmp(os.path.join(self.test_dir, 'sample_output', utils.PYvX_DIR, 'docker-dhcp-relay.supervisord.conf'), self.output_file))
 
         # Test generation of docker-dhcp-relay.supervisord.conf with disabled dhcp_server feature
-        template_path = os.path.join(self.test_dir, '..', '..', '..', 'dockers', 'docker-dhcp-relay', 'docker-dhcp-relay.supervisord.conf.j2')
+        template_path = os.path.join(self.test_dir, '..', '..', '..', 'dockers', 'docker-dhcp-relay',
+                                     'docker-dhcp-relay.supervisord.conf.j2')
         argument = ['-m', self.t0_minigraph, '-j', dhc_sample_data, '-p', self.t0_port_config, '-t', template_path]
         self.run_script(argument, output_file=self.output_file)
-        self.assertTrue(utils.cmp(os.path.join(self.test_dir, 'sample_output', utils.PYvX_DIR, 'docker-dhcp-relay.supervisord.conf'), self.output_file))
+        self.assertTrue(utils.cmp(os.path.join(self.test_dir, 'sample_output', utils.PYvX_DIR,
+                                               'docker-dhcp-relay.supervisord.conf'), self.output_file))
 
         # Test generation of docker-dhcp-relay.supervisord.conf with enabled dhcp_server feature
-        template_path = os.path.join(self.test_dir, '..', '..', '..', 'dockers', 'docker-dhcp-relay', 'docker-dhcp-relay.supervisord.conf.j2')
-        argument = ['-m', self.t0_minigraph, '-j', enable_dhcp_server_sample_data, '-p', self.t0_port_config, '-t', template_path]
+        template_path = os.path.join(self.test_dir, '..', '..', '..', 'dockers', 'docker-dhcp-relay',
+                                     'docker-dhcp-relay.supervisord.conf.j2')
+        argument = ['-m', self.t0_minigraph, '-j', enable_dhcp_server_sample_data, '-p', self.t0_port_config, '-t',
+                    template_path]
         self.run_script(argument, output_file=self.output_file)
-        self.assertTrue(utils.cmp(os.path.join(self.test_dir, 'sample_output', utils.PYvX_DIR, 'docker-dhcp-relay-enable-dhcp-server.supervisord.conf'), self.output_file))
+        self.assertTrue(utils.cmp(os.path.join(self.test_dir, 'sample_output', utils.PYvX_DIR,
+                                               'docker-dhcp-relay-enable-dhcp-server.supervisord.conf'),
+                                  self.output_file))
 
         # Test generation of docker-dhcp-relay.supervisord.conf when a vlan is missing ip/ipv6 helpers
-        template_path = os.path.join(self.test_dir, '..', '..', '..', 'dockers', 'docker-dhcp-relay', 'docker-dhcp-relay.supervisord.conf.j2')
+        template_path = os.path.join(self.test_dir, '..', '..', '..', 'dockers', 'docker-dhcp-relay',
+                                     'docker-dhcp-relay.supervisord.conf.j2')
         argument = ['-m', self.no_ip_helper_minigraph, '-p', self.t0_port_config, '-t', template_path]
         self.run_script(argument, output_file=self.output_file)
-        self.assertTrue(utils.cmp(os.path.join(self.test_dir, 'sample_output', utils.PYvX_DIR, 'docker-dhcp-relay-no-ip-helper.supervisord.conf'), self.output_file))
+        self.assertTrue(utils.cmp(os.path.join(self.test_dir, 'sample_output', utils.PYvX_DIR,
+                                               'docker-dhcp-relay-no-ip-helper.supervisord.conf'), self.output_file))
 
     def test_radv(self):
         # Test generation of radvd.conf with multiple ipv6 prefixes

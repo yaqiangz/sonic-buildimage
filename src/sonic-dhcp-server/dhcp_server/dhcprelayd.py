@@ -5,7 +5,6 @@ import psutil
 import subprocess
 import syslog
 import time
-from datetime import datetime
 from swsscommon import swsscommon
 from .dhcp_server_utils import DhcpDbConnector
 
@@ -13,7 +12,7 @@ REDIS_SOCK_PATH = "/var/run/redis/redis.sock"
 DHCP_SERVER_IPV4_SERVER_IP = "DHCP_SERVER_IPV4_SERVER_IP"
 DHCP_SERVER_IPV4 = "DHCP_SERVER_IPV4"
 VLAN = "VLAN"
-DEFAULT_SELECT_TIMEOUT = 5000 # millisecond
+DEFAULT_SELECT_TIMEOUT = 5000  # millisecond
 DHCP_SERVER_INTERFACE = "eth0"
 DEFAULT_REFRESH_INTERVAL = 2
 
@@ -37,14 +36,14 @@ class DhcpRelayd(object):
         self.db_connector = db_connector
         self.last_refresh_time = None
         self.select_timeout = select_timeout
-    
+
     def start(self):
         """
         Start function
         """
         self.refresh_dhcrelay()
         self._subscribe_config_db()
-    
+
     def refresh_dhcrelay(self):
         """
         To refresh dhcrelay/dhcpmon process (start or restart)
@@ -73,7 +72,8 @@ class DhcpRelayd(object):
 
     def _subscribe_config_db(self):
         self.sel = swsscommon.Select()
-        self.subscribe_dhcp_server_table = swsscommon.SubscriberStateTable(self.db_connector.config_db, DHCP_SERVER_IPV4)
+        self.subscribe_dhcp_server_table = swsscommon.SubscriberStateTable(self.db_connector.config_db,
+                                                                           DHCP_SERVER_IPV4)
         self.subscribe_vlan_table = swsscommon.SubscriberStateTable(self.db_connector.config_db, VLAN)
         # Subscribe dhcp_server_ipv4 and vlan table. No need to subscribe vlan_member table
         self.sel.addSelectable(self.subscribe_dhcp_server_table)
@@ -83,7 +83,7 @@ class DhcpRelayd(object):
         state, _ = self.sel.select(self.select_timeout)
         if state == swsscommon.Select.TIMEOUT or state != swsscommon.Select.OBJECT:
             return
-        
+
         self._dhcp_server_update_event()
         self._vlan_update_event()
 
@@ -125,7 +125,8 @@ class DhcpRelayd(object):
         if len(new_dhcp_interfaces) == 0:
             return
 
-        cmds = ["/usr/sbin/dhcrelay", "-d", "-m", "discard", "-a", "%h:%p", "%P", "--name-alias-map-file", "/tmp/port-name-alias-map.txt"]
+        cmds = ["/usr/sbin/dhcrelay", "-d", "-m", "discard", "-a", "%h:%p", "%P", "--name-alias-map-file",
+                "/tmp/port-name-alias-map.txt"]
         for dhcp_interface in new_dhcp_interfaces:
             cmds += ["-id", dhcp_interface]
         cmds += ["-iu", "docker0", dhcp_server_ip]
@@ -170,7 +171,8 @@ class DhcpRelayd(object):
            process_name == "dhcpmon" and old_dhcp_interfaces == (new_dhcp_interfaces):
             return NOT_KILLED
 
-        target_proc.kill()
+        target_proc.terminate()
+        target_proc.wait()
         return KILLED_OLD
 
     def _get_dhcp_server_ip(self):

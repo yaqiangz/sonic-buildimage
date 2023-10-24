@@ -1,13 +1,11 @@
 import psutil
 import pytest
 import subprocess
-import sys
-import time
 from common_utils import mock_get_config_db_table, MockSelect, MockSubscribeTable, MockProc
 from dhcp_server.dhcp_server_utils import DhcpDbConnector
 from dhcp_server.dhcprelayd import DhcpRelayd, KILLED_OLD, NOT_KILLED, NOT_FOUND_PROC
 from swsscommon import swsscommon
-from unittest.mock import patch, call, ANY, PropertyMock, MagicMock
+from unittest.mock import patch, call, ANY, PropertyMock
 
 
 def test_start(mock_swsscommon_dbconnector_init):
@@ -74,8 +72,8 @@ def test_dhcp_server_update_event(mock_swsscommon_dbconnector_init):
         while len(dhcprelayd.subscribe_dhcp_server_table.stack) != 0:
             dhcprelayd._dhcp_server_update_event()
         mock_refresh.assert_has_calls([
-            call(), # del vlan1000
-            call() # set vlan2000 state
+            call(),  # del vlan1000
+            call()  # set vlan2000 state
         ])
 
 
@@ -90,7 +88,7 @@ def test_vlan_update_event(mock_swsscommon_dbconnector_init):
         dhcprelayd = DhcpRelayd(dhcp_db_connector)
         while len(dhcprelayd.subscribe_vlan_table.stack) != 0:
             dhcprelayd._vlan_update_event()
-        mock_refresh.assert_called_once_with() # set vlan1000
+        mock_refresh.assert_called_once_with()  # set vlan1000
 
 
 @pytest.mark.parametrize("new_dhcp_interfaces", [[], ["Vlan1000"], ["Vlan1000", "Vlan2000"]])
@@ -104,12 +102,13 @@ def test_start_dhcrelay_process(mock_swsscommon_dbconnector_init, new_dhcp_inter
         if len(new_dhcp_interfaces) == 0 or kill_res == NOT_KILLED:
             mock_popen.assert_not_called()
         else:
-            call_param = ["/usr/sbin/dhcrelay", "-d", "-m", "discard", "-a", "%h:%p", "%P", "--name-alias-map-file", "/tmp/port-name-alias-map.txt"]
+            call_param = ["/usr/sbin/dhcrelay", "-d", "-m", "discard", "-a", "%h:%p", "%P", "--name-alias-map-file",
+                          "/tmp/port-name-alias-map.txt"]
             for interface in new_dhcp_interfaces:
                 call_param += ["-id", interface]
             call_param += ["-iu", "docker0", "240.127.1.2"]
             mock_popen.assert_called_once_with(call_param)
-    
+
 
 @pytest.mark.parametrize("new_dhcp_interfaces_list", [[], ["Vlan1000"], ["Vlan1000", "Vlan2000"]])
 @pytest.mark.parametrize("kill_res", [KILLED_OLD, NOT_KILLED, NOT_FOUND_PROC])
@@ -133,7 +132,8 @@ def test_start_dhcpmon_process(mock_swsscommon_dbconnector_init, new_dhcp_interf
 @pytest.mark.parametrize("new_dhcp_interfaces_list", [[], ["Vlan1000"], ["Vlan1000", "Vlan2000"]])
 @pytest.mark.parametrize("process_name", ["dhcrelay", "dhcpmon"])
 @pytest.mark.parametrize("running_procs", [[], ["dhcrelay"], ["dhcpmon"], ["dhcrelay", "dhcpmon"]])
-def test_kill_exist_relay_releated_process(mock_swsscommon_dbconnector_init, new_dhcp_interfaces_list, process_name, running_procs):
+def test_kill_exist_relay_releated_process(mock_swsscommon_dbconnector_init, new_dhcp_interfaces_list, process_name,
+                                           running_procs):
     new_dhcp_interfaces = set(new_dhcp_interfaces_list)
     process_iter_ret = []
     for running_proc in running_procs:

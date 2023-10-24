@@ -45,7 +45,6 @@ def test_notify_kea_dhcp4_proc(process_list, mock_swsscommon_dbconnector_init, m
             mock_send_signal.assert_not_called()
 
 
-
 def test_update_dhcp_server_ip(mock_swsscommon_dbconnector_init, mock_parse_port_map_alias, mock_get_render_template):
     mock_interface = {
         "eth0": [
