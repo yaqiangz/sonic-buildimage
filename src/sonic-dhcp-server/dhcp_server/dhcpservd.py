@@ -2,6 +2,7 @@
 import psutil
 import signal
 import time
+import sys
 import syslog
 from .dhcp_cfggen import DhcpServCfgGenerator
 from .dhcp_lease import LeaseManager
@@ -30,8 +31,6 @@ class DhcpServd(object):
             if KEA_DHCP4_PROC_NAME in proc.name():
                 proc.send_signal(signal.SIGHUP)
                 break
-        else:
-            syslog.syslog(syslog.LOG_WARNING, "Cannot find process: {}".format(KEA_DHCP4_PROC_NAME))
 
     def dump_dhcp4_config(self):
         """
@@ -48,17 +47,18 @@ class DhcpServd(object):
         Add ip address of "eth0" inside dhcp_server container as dhcp_server_ip into state_db
         """
         dhcp_server_ip = None
-        while dhcp_server_ip is None:
-            dhcp_interface = psutil.net_if_addrs().get(DHCP_SERVER_INTERFACE)
+        for _ in range(10):
+            dhcp_interface = psutil.net_if_addrs().get(DHCP_SERVER_INTERFACE, [])
             for address in dhcp_interface:
                 if address.family == AF_INET:
                     dhcp_server_ip = address.address
-                    break
+                    self.db_connector.state_db.hset("{}|{}".format(DHCP_SERVER_IPV4_SERVER_IP, DHCP_SERVER_INTERFACE),
+                                                    "ip", dhcp_server_ip)
+                    return
             else:
                 time.sleep(5)
-                syslog.syslog("Cannot get ip address of {}".format(DHCP_SERVER_INTERFACE))
-        self.db_connector.state_db.hset("{}|{}".format(DHCP_SERVER_IPV4_SERVER_IP, DHCP_SERVER_INTERFACE), "ip",
-                                        dhcp_server_ip)
+                syslog.syslog(syslog.LOG_INFO, "Cannot get ip address of {}".format(DHCP_SERVER_INTERFACE))
+        sys.exit(1)
 
     def start(self):
         self.dump_dhcp4_config()

@@ -173,7 +173,7 @@ def test_show_multi_dhcp_relay(test_name, test_data, fs):
     assert result == expected_output
 
 
-def test_show_ipv4_counter_with_enabled_dhcp_server():
+def test_show_dhcp_relay_ipv4_counter_with_enabled_dhcp_server():
     with mock.patch.object(show, "is_dhcp_server_enabled", return_value=True), \
          mock.patch.object(swsscommon.ConfigDBConnector, "connect", return_value=None), \
          mock.patch.object(swsscommon.ConfigDBConnector, "get_table", return_value=None), \

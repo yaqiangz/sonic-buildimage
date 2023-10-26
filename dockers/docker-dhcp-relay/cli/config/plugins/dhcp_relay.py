@@ -116,6 +116,11 @@ def del_dhcp_relay(vid, dhcp_relay_ips, db, ip_version):
         ctx.fail("Restart service dhcp_relay failed with error {}".format(e))
 
 
+def is_dhcp_server_enabled(db):
+    dhcp_server_feature_entry = db.cfgdb.get_entry("FEATURE", "dhcp_server")
+    return "state" in dhcp_server_feature_entry and dhcp_server_feature_entry["state"] == "enabled"
+
+
 @click.group(cls=clicommon.AbbreviationGroup, name="dhcp_relay")
 def dhcp_relay():
     """config DHCP_Relay information"""
@@ -167,11 +172,6 @@ def add_dhcp_relay_ipv4_helper(db, vid, dhcp_relay_helpers):
         click.echo("Cannot change ipv4 dhcp_relay configuration when dhcp_server feature is enabled")
         return
     add_dhcp_relay(vid, dhcp_relay_helpers, db, IPV4)
-
-
-def is_dhcp_server_enabled(db):
-    dhcp_server_feature_entry = db.cfgdb.get_entry("FEATURE", "dhcp_server")
-    return "state" in dhcp_server_feature_entry and dhcp_server_feature_entry["state"] == "enabled"
 
 
 @dhcp_relay_ipv4_helper.command("del")

@@ -1,6 +1,8 @@
 import pytest
 import psutil
 import signal
+import sys
+import time
 from common_utils import MockProc
 from dhcp_server.dhcp_server_utils import DhcpDbConnector
 from dhcp_server.dhcp_cfggen import DhcpServCfgGenerator
@@ -45,22 +47,31 @@ def test_notify_kea_dhcp4_proc(process_list, mock_swsscommon_dbconnector_init, m
             mock_send_signal.assert_not_called()
 
 
-def test_update_dhcp_server_ip(mock_swsscommon_dbconnector_init, mock_parse_port_map_alias, mock_get_render_template):
-    mock_interface = {
+@pytest.mark.parametrize("mock_intf", [True, False])
+def test_update_dhcp_server_ip(mock_swsscommon_dbconnector_init, mock_parse_port_map_alias, mock_get_render_template,
+                               mock_intf):
+    mock_interface = {} if not mock_intf else {
         "eth0": [
             MockIntf(AF_INET6, "fd00::2"),
             MockIntf(AF_INET, "240.127.1.2")
         ]
     }
     with patch.object(psutil, "net_if_addrs", return_value=mock_interface), \
-         patch.object(swsscommon.DBConnector, "hset") as mock_hset:
+         patch.object(swsscommon.DBConnector, "hset") as mock_hset, \
+         patch.object(time, "sleep") as mock_sleep, \
+         patch.object(sys, "exit") as mock_exit:
         dhcp_db_connector = DhcpDbConnector()
         dhcp_cfg_generator = DhcpServCfgGenerator(dhcp_db_connector)
         dhcpservd = DhcpServd(dhcp_cfg_generator, dhcp_db_connector)
         dhcpservd._update_dhcp_server_ip()
-        mock_hset.assert_has_calls([
-            call("DHCP_SERVER_IPV4_SERVER_IP|eth0", "ip", "240.127.1.2")
-        ])
+        if mock_intf:
+            mock_hset.assert_has_calls([
+                call("DHCP_SERVER_IPV4_SERVER_IP|eth0", "ip", "240.127.1.2")
+            ])
+        else:
+            mock_hset.assert_not_called()
+            mock_exit.assert_called_once_with(1)
+            mock_sleep.assert_has_calls([call(5) for _ in range(10)])
 
 
 def test_start(mock_swsscommon_dbconnector_init, mock_parse_port_map_alias, mock_get_render_template):

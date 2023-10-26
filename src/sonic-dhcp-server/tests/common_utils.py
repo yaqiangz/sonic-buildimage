@@ -23,25 +23,29 @@ class MockSelect(object):
 
 
 class MockSubscribeTable(object):
-    def __init__(self, table_name):
-        self.table_name = table_name
+    def __init__(self, tables):
         self.stack = []
-        if table_name == "DHCP_SERVER_IPV4":
-            heapq.heappush(self.stack, ("Vlan1000", "SET", (("state", "enabled"),)))
-            heapq.heappush(self.stack, ("Vlan1000", "SET", (("customized_options", "option1"), ("state", "enabled"),)))
-            heapq.heappush(self.stack, ("Vlan2000", "SET", (("state", "enabled"),)))
-            heapq.heappush(self.stack, ("Vlan1000", "DEL", ()))
-            heapq.heappush(self.stack, ("Vlan2000", "DEL", ()))
-        if table_name == "VLAN":
-            heapq.heappush(self.stack, ("Vlan1000", "SET", (("vlanid", "1000"),)))
-            heapq.heappush(self.stack, ("Vlan1001", "SET", (("vlanid", "1001"),)))
-            heapq.heappush(self.stack, ("Vlan1001", "DEL", (("vlanid", "1001"),)))
-            heapq.heappush(self.stack, ("Vlan1002", "SET", (("vlanid", "1002"),)))
-            heapq.heappush(self.stack, ("Vlan2000", "SET", (("vlanid", "2000"),)))
+        for item in tables:
+            heapq.heappush(self.stack, item)
+        # if table_name == "DHCP_SERVER_IPV4":
+        #     heapq.heappush(self.stack, ("Vlan1000", "SET", (("state", "enabled"),)))
+        #     heapq.heappush(self.stack, ("Vlan1000", "SET", (("customized_options", "option1"), ("state", "enabled"),)))
+        #     heapq.heappush(self.stack, ("Vlan2000", "SET", (("state", "enabled"),)))
+        #     heapq.heappush(self.stack, ("Vlan1000", "DEL", ()))
+        #     heapq.heappush(self.stack, ("Vlan2000", "DEL", ()))
+        # if table_name == "VLAN":
+        #     heapq.heappush(self.stack, ("Vlan1000", "SET", (("vlanid", "1000"),)))
+        #     heapq.heappush(self.stack, ("Vlan1001", "SET", (("vlanid", "1001"),)))
+        #     heapq.heappush(self.stack, ("Vlan1001", "DEL", (("vlanid", "1001"),)))
+        #     heapq.heappush(self.stack, ("Vlan1002", "SET", (("vlanid", "1002"),)))
+        #     heapq.heappush(self.stack, ("Vlan2000", "SET", (("vlanid", "2000"),)))
 
     def pop(self):
         res = heapq.heappop(self.stack)
         return res
+
+    def empty(self):
+        return len(self.stack) == 0
 
 
 def mock_get_config_db_table(table_name):

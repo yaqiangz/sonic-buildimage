@@ -3,6 +3,7 @@
 # others will not relay dhcp_release packet.
 import psutil
 import subprocess
+import sys
 import syslog
 import time
 from swsscommon import swsscommon
@@ -48,6 +49,7 @@ class DhcpRelayd(object):
         """
         To refresh dhcrelay/dhcpmon process (start or restart)
         """
+        syslog.syslog(syslog.LOG_INFO, "Start to refresh dhcrelay related processes")
         dhcp_server_ip = self._get_dhcp_server_ip()
         dhcp_server_ipv4_table = self.db_connector.get_config_db_table(DHCP_SERVER_IPV4)
         vlan_table = self.db_connector.get_config_db_table(VLAN)
@@ -84,35 +86,45 @@ class DhcpRelayd(object):
         if state == swsscommon.Select.TIMEOUT or state != swsscommon.Select.OBJECT:
             return
 
-        self._dhcp_server_update_event()
-        self._vlan_update_event()
+        need_refresh = self._check_dhcp_server_update()
+        need_refresh |= self._check_vlan_update()
+        if need_refresh:
+            self.refresh_dhcrelay()
 
-    def _dhcp_server_update_event(self):
-        key, op, entry = self.subscribe_dhcp_server_table.pop()
-        # For set operation, we can skip non-state changes for exist dhcp interfaces
-        if op == "SET":
-            for field, value in entry:
-                if field != "state":
-                    continue
-                if key in self.dhcp_interfaces_state and value == self.dhcp_interfaces_state[key]:
-                    return
-                break
-        # For del operation, we can skip disabled change
-        if op == "DEL":
-            if key not in self.dhcp_interfaces_state:
-                return
-        self.refresh_dhcrelay()
-
-    def _vlan_update_event(self):
-        key, op, _ = self.subscribe_vlan_table.pop()
-        # For vlan doesn't have related dhcp entry, not need to refresh dhcrelay process
-        if key not in self.dhcp_interfaces_state:
-            return
-        if self.dhcp_interfaces_state[key] == "disabled":
+    def _check_dhcp_server_update(self):
+        need_refresh = False
+        while not self.subscribe_dhcp_server_table.empty():
+            key, op, entry = self.subscribe_dhcp_server_table.pop()
+            if op == "SET":
+                for field, value in entry:
+                    if field != "state":
+                        continue
+                    # Only if new state is disabled and old state is disabled, we can skip. Other scenarios need refres
+                    if not (value == "disabled" and (key not in self.dhcp_interfaces_state
+                                                     or self.dhcp_interfaces_state[key] == "disabled")):
+                        need_refresh = True
+            # For del operation, we can skip disabled change
             if op == "DEL":
-                del self.dhcp_interfaces_state[key]
-            return
-        self.refresh_dhcrelay()
+                if key in self.dhcp_interfaces_state:
+                    if self.dhcp_interfaces_state[key] == "enabled":
+                        need_refresh = True
+                    else:
+                        del self.dhcp_interfaces_state[key]
+        return need_refresh
+
+    def _check_vlan_update(self):
+        need_refresh = False
+        while not self.subscribe_vlan_table.empty():
+            key, op, _ = self.subscribe_vlan_table.pop()
+            # For vlan doesn't have related dhcp entry, not need to refresh dhcrelay process
+            if key not in self.dhcp_interfaces_state:
+                continue
+            if self.dhcp_interfaces_state[key] == "disabled":
+                if op == "DEL":
+                    del self.dhcp_interfaces_state[key]
+            else:
+                need_refresh = True
+        return need_refresh
 
     def _start_dhcrelay_process(self, new_dhcp_interfaces, dhcp_server_ip):
         # To check whether need to kill dhcrelay process
@@ -131,6 +143,7 @@ class DhcpRelayd(object):
             cmds += ["-id", dhcp_interface]
         cmds += ["-iu", "docker0", dhcp_server_ip]
         subprocess.Popen(cmds)
+        syslog.syslog(syslog.LOG_INFO, "dhcrelay process started successfully, cmds: {}".format(cmds))
 
     def _start_dhcpmon_process(self, new_dhcp_interfaces):
         # To check whether need to kill dhcrelay process
@@ -146,6 +159,7 @@ class DhcpRelayd(object):
         for dhcp_interface in new_dhcp_interfaces:
             cmds = ["/usr/sbin/dhcpmon", "-id", dhcp_interface, "-iu", "docker0", "-im", "eth0"]
             subprocess.Popen(cmds)
+            syslog.syslog(syslog.LOG_INFO, "dhcpmon process started successfully, cmds: {}".format(cmds))
 
     def _kill_exist_relay_releated_process(self, new_dhcp_interfaces, process_name):
         old_dhcp_interfaces = set()
@@ -173,17 +187,20 @@ class DhcpRelayd(object):
 
         target_proc.terminate()
         target_proc.wait()
+        syslog.syslog(syslog.LOG_INFO, "Kill process: {}".format(process_name))
         return KILLED_OLD
 
     def _get_dhcp_server_ip(self):
         dhcp_server_ip_table = swsscommon.Table(self.db_connector.state_db, DHCP_SERVER_IPV4_SERVER_IP)
-        while True:
+        for _ in range(10):
             state, ip = dhcp_server_ip_table.hget(DHCP_SERVER_INTERFACE, "ip")
             if state:
                 return ip
             else:
-                syslog.syslog(syslog.LOG_WARNING, "Cannot get dhcp server ip")
-                time.sleep(2)
+                syslog.syslog(syslog.LOG_INFO, "Cannot get dhcp server ip")
+                time.sleep(10)
+        syslog.syslog(syslog.LOG_ERR, "Cannot get dhcp_server ip from state_db")
+        sys.exit(1)
 
 
 def main():
