@@ -1,5 +1,6 @@
 import heapq
 import json
+import psutil
 
 MOCK_CONFIG_DB_PATH = "tests/test_data/mock_config_db.json"
 MOCK_STATE_DB_PATH = "tests/test_data/mock_state_db.json"
@@ -44,8 +45,8 @@ class MockSubscribeTable(object):
         res = heapq.heappop(self.stack)
         return res
 
-    def empty(self):
-        return len(self.stack) == 0
+    def hasData(self):
+        return len(self.stack) != 0
 
 
 def mock_get_config_db_table(table_name):
@@ -54,8 +55,9 @@ def mock_get_config_db_table(table_name):
 
 
 class MockProc(object):
-    def __init__(self, name):
+    def __init__(self, name, pid=None, status=psutil.STATUS_RUNNING):
         self.proc_name = name
+        self.pid = pid
 
     def name(self):
         return self.proc_name
@@ -75,3 +77,11 @@ class MockProc(object):
 
     def wait(self):
         pass
+
+    def status(self):
+        return self.status
+
+
+class MockPopen(object):
+    def __init__(self, pid):
+        self.pid = pid
