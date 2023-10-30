@@ -20,13 +20,22 @@ class DhcpDbMonitor(object):
 
     @abstractmethod
     def subscribe_table(self):
+        """
+        Subcribe db table to monitor
+        """
         raise NotImplementedError
 
     @abstractmethod
     def _do_check(self):
+        """
+        Check whether interested table content changed
+        """
         raise NotImplementedError
 
     def check_db_update(self, check_param):
+        """
+        Fetch db and check update
+        """
         state, _ = self.sel.select(self.select_timeout)
         if state == swsscommon.Select.TIMEOUT or state != swsscommon.Select.OBJECT:
             return False
@@ -58,6 +67,13 @@ class DhcpRelaydDbMonitor(DhcpDbMonitor):
                 self._check_vlan_intf_update(enabled_dhcp_interfaces))
 
     def _check_dhcp_server_update(self, enabled_dhcp_interfaces):
+        """
+        Check dhcp_server_ipv4 table
+        Args:
+            enabled_dhcp_interfaces: DHCP interface that enabled dhcp_server
+        Returns:
+            Whether need to refresh
+        """
         need_refresh = False
         while self.subscribe_dhcp_server_table.hasData():
             key, op, entry = self.subscribe_dhcp_server_table.pop()
@@ -77,6 +93,13 @@ class DhcpRelaydDbMonitor(DhcpDbMonitor):
         return need_refresh
 
     def _check_vlan_update(self, enabled_dhcp_interfaces):
+        """
+        Check vlan table
+        Args:
+            enabled_dhcp_interfaces: DHCP interface that enabled dhcp_server
+        Returns:
+            Whether need to refresh
+        """
         need_refresh = False
         while self.subscribe_vlan_table.hasData():
             key, op, _ = self.subscribe_vlan_table.pop()
@@ -87,6 +110,13 @@ class DhcpRelaydDbMonitor(DhcpDbMonitor):
         return need_refresh
 
     def _check_vlan_intf_update(self, enabled_dhcp_interfaces):
+        """
+        Check vlan_interface table
+        Args:
+            enabled_dhcp_interfaces: DHCP interface that enabled dhcp_server
+        Returns:
+            Whether need to refresh
+        """
         need_refresh = False
         while self.subscribe_vlan_intf_table.hasData():
             key, _, _ = self.subscribe_vlan_intf_table.pop()
