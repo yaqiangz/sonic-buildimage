@@ -1,14 +1,14 @@
 # TODO Add support for running different dhcrelay processes for each dhcp interface
 # Currently if we run multiple dhcrelay processes, except for the last running process,
 # others will not relay dhcp_release packet.
-import ipaddress
 import psutil
 import subprocess
 import sys
 import syslog
 import time
 from swsscommon import swsscommon
-from .dhcp_server_utils import DhcpDbConnector, terminate_proc
+from dhcp_server.common.utils import DhcpDbConnector, terminate_proc
+from dhcp_server.common.dhcp_db_monitor import DhcpRelaydDbMonitor
 
 REDIS_SOCK_PATH = "/var/run/redis/redis.sock"
 DHCP_SERVER_IPV4_SERVER_IP = "DHCP_SERVER_IPV4_SERVER_IP"
@@ -26,10 +26,7 @@ NOT_FOUND_PROC = 3
 
 class DhcpRelayd(object):
     sel = None
-    subscribe_dhcp_server_table = None
-    subscribe_vlan_table = None
-    subscribe_vlan_intf_table = None
-    dhcp_interfaces_state = {}
+    enabled_dhcp_interfaces = set()
 
     def __init__(self, db_connector, select_timeout=DEFAULT_SELECT_TIMEOUT):
         """
@@ -39,14 +36,14 @@ class DhcpRelayd(object):
         """
         self.db_connector = db_connector
         self.last_refresh_time = None
-        self.select_timeout = select_timeout
+        self.dhcp_relayd_monitor = DhcpRelaydDbMonitor(db_connector, select_timeout)
 
     def start(self):
         """
         Start function
         """
         self.refresh_dhcrelay()
-        self._subscribe_config_db()
+        self.dhcp_relayd_monitor.subscribe_table()
 
     def refresh_dhcrelay(self, force_kill=False):
         """
@@ -58,13 +55,17 @@ class DhcpRelayd(object):
         vlan_table = self.db_connector.get_config_db_table(VLAN)
 
         dhcp_interfaces = set()
-        self.dhcp_interfaces_state = {}
+        self.enabled_dhcp_interfaces = set()
         for dhcp_interface, config in dhcp_server_ipv4_table.items():
-            self.dhcp_interfaces_state[dhcp_interface] = config["state"]
-            if dhcp_interface not in vlan_table:
-                continue
+            # Reason for add to enabled_dhcp_interfaces firstly is for below scenario:
+            # Firstly vlan 1000 is not in vlan table but enabled in dhcp_server table, then add vlan1000 to vlan table
+            # we need to refresh
             if config["state"] == "enabled":
                 dhcp_interfaces.add(dhcp_interface)
+                self.enabled_dhcp_interfaces.add(dhcp_interface)
+            if dhcp_interface not in vlan_table:
+                dhcp_interfaces.discard(dhcp_interface)
+                continue
         self._start_dhcrelay_process(dhcp_interfaces, dhcp_server_ip, force_kill)
         self._start_dhcpmon_process(dhcp_interfaces, force_kill)
 
@@ -73,82 +74,16 @@ class DhcpRelayd(object):
         Wait function, check db change here
         """
         while True:
-            self._config_db_update_event()
-
-    def _subscribe_config_db(self):
-        self.sel = swsscommon.Select()
-        self.subscribe_dhcp_server_table = swsscommon.SubscriberStateTable(self.db_connector.config_db,
-                                                                           DHCP_SERVER_IPV4)
-        self.subscribe_vlan_table = swsscommon.SubscriberStateTable(self.db_connector.config_db, VLAN)
-        self.subscribe_vlan_intf_table = swsscommon.SubscriberStateTable(self.db_connector.config_db, VLAN_INTERFACE)
-        # Subscribe dhcp_server_ipv4 and vlan/vlan_interface table. No need to subscribe vlan_member table
-        self.sel.addSelectable(self.subscribe_dhcp_server_table)
-        self.sel.addSelectable(self.subscribe_vlan_table)
-        self.sel.addSelectable(self.subscribe_vlan_intf_table)
-
-    def _config_db_update_event(self):
-        state, _ = self.sel.select(self.select_timeout)
-        if state == swsscommon.Select.TIMEOUT or state != swsscommon.Select.OBJECT:
-            return
-
-        need_refresh = self._check_dhcp_server_update()
-        need_refresh |= self._check_vlan_update()
-        # vlan ip change require kill old dhcp_relay related processes
-        if self._check_vlan_intf_update():
-            self.refresh_dhcrelay(True)
-        elif need_refresh:
-            self.refresh_dhcrelay(False)
-
-    def _check_dhcp_server_update(self):
-        need_refresh = False
-        while self.subscribe_dhcp_server_table.hasData():
-            key, op, entry = self.subscribe_dhcp_server_table.pop()
-            if op == "SET":
-                for field, value in entry:
-                    if field != "state":
-                        continue
-                    # Only if new state is not consistent with old state, we need to refresh
-                    if key in self.dhcp_interfaces_state and self.dhcp_interfaces_state[key] != value:
-                        need_refresh = True
-                    elif key not in self.dhcp_interfaces_state and value == "enabled":
-                        need_refresh = True
-            # For del operation, we can skip disabled change
-            if op == "DEL":
-                if key in self.dhcp_interfaces_state:
-                    if self.dhcp_interfaces_state[key] == "enabled":
-                        need_refresh = True
-                    else:
-                        del self.dhcp_interfaces_state[key]
-        return need_refresh
-
-    def _check_vlan_update(self):
-        need_refresh = False
-        while self.subscribe_vlan_table.hasData():
-            key, op, _ = self.subscribe_vlan_table.pop()
-            # For vlan doesn't have related dhcp entry, not need to refresh dhcrelay process
-            if key not in self.dhcp_interfaces_state:
+            res = (self.dhcp_relayd_monitor.check_db_update({"enabled_dhcp_interfaces": self.enabled_dhcp_interfaces}))
+            # Select timeout or no successful
+            if isinstance(res, bool):
                 continue
-            if self.dhcp_interfaces_state[key] == "disabled":
-                if op == "DEL":
-                    del self.dhcp_interfaces_state[key]
-            else:
-                need_refresh = True
-        return need_refresh
-
-    def _check_vlan_intf_update(self):
-        need_refresh = False
-        while self.subscribe_vlan_intf_table.hasData():
-            key, _, _ = self.subscribe_vlan_intf_table.pop()
-            splits = key.split("|")
-            vlan_name = splits[0]
-            ip_address = splits[1].split("/")[0] if len(splits) > 1 else None
-            if vlan_name not in self.dhcp_interfaces_state:
-                continue
-            if self.dhcp_interfaces_state[vlan_name] == "enabled":
-                if ip_address is None or ipaddress.ip_address(ip_address).version != 4:
-                    continue
-                need_refresh = True
-        return need_refresh
+            (dhcp_server_res, vlan_res, vlan_intf_res) = res
+            # vlan ip change require kill old dhcp_relay related processes
+            if vlan_intf_res:
+                self.refresh_dhcrelay(True)
+            elif dhcp_server_res or vlan_res:
+                self.refresh_dhcrelay(False)
 
     def _start_dhcrelay_process(self, new_dhcp_interfaces, dhcp_server_ip, force_kill):
         # To check whether need to kill dhcrelay process

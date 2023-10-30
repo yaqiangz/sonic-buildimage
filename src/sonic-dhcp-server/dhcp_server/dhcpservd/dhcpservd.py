@@ -6,7 +6,7 @@ import sys
 import syslog
 from .dhcp_cfggen import DhcpServCfgGenerator
 from .dhcp_lease import LeaseManager
-from .dhcp_server_utils import DhcpDbConnector
+from dhcp_server.common.utils import DhcpDbConnector
 
 KEA_DHCP4_CONFIG = "/etc/kea/kea-dhcp4.conf"
 KEA_DHCP4_PROC_NAME = "kea-dhcp4"
