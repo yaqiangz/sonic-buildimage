@@ -13,6 +13,9 @@ DEFAULT_SELECT_TIMEOUT = 5000  # millisecond
 
 
 class DhcpDbMonitor(object):
+    subscribe_vlan_table = None
+    subscribe_vlan_intf_table = None
+
     def __init__(self, db_connector, select_timeout=DEFAULT_SELECT_TIMEOUT):
         self.db_connector = db_connector
         self.sel = swsscommon.Select()
@@ -41,11 +44,48 @@ class DhcpDbMonitor(object):
             return False
         return self._do_check(check_param)
 
+    def _check_vlan_update(self, enabled_dhcp_interfaces):
+        """
+        Check vlan table
+        Args:
+            enabled_dhcp_interfaces: DHCP interface that enabled dhcp_server
+        Returns:
+            Whether need to refresh
+        """
+        need_refresh = False
+        while self.subscribe_vlan_table.hasData():
+            key, _, _ = self.subscribe_vlan_table.pop()
+            # For vlan doesn't have related dhcp entry, not need to refresh dhcrelay process
+            if key not in enabled_dhcp_interfaces:
+                continue
+            need_refresh = True
+        return need_refresh
+
+    def _check_vlan_intf_update(self, enabled_dhcp_interfaces):
+        """
+        Check vlan_interface table
+        Args:
+            enabled_dhcp_interfaces: DHCP interface that enabled dhcp_server
+        Returns:
+            Whether need to refresh
+        """
+        need_refresh = False
+        while self.subscribe_vlan_intf_table.hasData():
+            key, _, _ = self.subscribe_vlan_intf_table.pop()
+            splits = key.split("|")
+            vlan_name = splits[0]
+            ip_address = splits[1].split("/")[0] if len(splits) > 1 else None
+            # For vlan doesn't have related dhcp entry, not need to refresh dhcrelay process
+            if vlan_name not in enabled_dhcp_interfaces:
+                continue
+            if ip_address is None or ipaddress.ip_address(ip_address).version != 4:
+                continue
+            need_refresh = True
+        return need_refresh
+
 
 class DhcpRelaydDbMonitor(DhcpDbMonitor):
     subscribe_dhcp_server_table = None
-    subscribe_vlan_table = None
-    subscribe_vlan_intf_table = None
 
     def subscribe_table(self):
         self.subscribe_dhcp_server_table = swsscommon.SubscriberStateTable(self.db_connector.config_db,
@@ -92,40 +132,90 @@ class DhcpRelaydDbMonitor(DhcpDbMonitor):
                     need_refresh = True
         return need_refresh
 
-    def _check_vlan_update(self, enabled_dhcp_interfaces):
-        """
-        Check vlan table
-        Args:
-            enabled_dhcp_interfaces: DHCP interface that enabled dhcp_server
-        Returns:
-            Whether need to refresh
-        """
-        need_refresh = False
-        while self.subscribe_vlan_table.hasData():
-            key, op, _ = self.subscribe_vlan_table.pop()
-            # For vlan doesn't have related dhcp entry, not need to refresh dhcrelay process
-            if key not in enabled_dhcp_interfaces:
-                continue
-            need_refresh = True
+
+class DhcpServdDbMonitor(DhcpDbMonitor):
+    subscribe_dhcp_server_table = None
+    subscribe_dhcp_server_port_table = None
+    subscribe_dhcp_server_range_table = None
+    subscribe_vlan_table = None
+    subscribe_vlan_member_table = None
+    subscribe_vlan_intf_table = None
+
+    def subscribe_table(self):
+        self.subscribe_dhcp_server_table = swsscommon.SubscriberStateTable(self.db_connector.config_db,
+                                                                           DHCP_SERVER_IPV4)
+        self.subscribe_dhcp_server_port_table = swsscommon.SubscriberStateTable(self.db_connector.config_db,
+                                                                                DHCP_SERVER_IPV4_PORT)
+        # TODO customized table
+        self.subscribe_dhcp_server_range_table = swsscommon.SubscriberStateTable(self.db_connector.config_db,
+                                                                                 DHCP_SERVER_IPV4_RANGE)
+        self.subscribe_vlan_table = swsscommon.SubscriberStateTable(self.db_connector.config_db, VLAN)
+        self.subscribe_vlan_member_table = swsscommon.SubscriberStateTable(self.db_connector.config_db, VLAN_MEMBER)
+        self.subscribe_vlan_intf_table = swsscommon.SubscriberStateTable(self.db_connector.config_db, VLAN_INTERFACE)
+        # Subscribe dhcp_server and vlan related tables.
+        self.sel.addSelectable(self.subscribe_dhcp_server_table)
+        self.sel.addSelectable(self.subscribe_dhcp_server_port_table)
+        self.sel.addSelectable(self.subscribe_dhcp_server_range_table)
+        self.sel.addSelectable(self.subscribe_vlan_table)
+        self.sel.addSelectable(self.subscribe_vlan_member_table)
+        self.sel.addSelectable(self.subscribe_vlan_intf_table)
+
+    def _do_check(self, check_param):
+        if "enabled_dhcp_interfaces" not in check_param or "used_range" not in check_param:
+            syslog.syslog(syslog.LOG_ERR, "Cannot get enabled_dhcp_interfaces")
+            return True
+        enabled_dhcp_interfaces = check_param["enabled_dhcp_interfaces"]
+        used_range = check_param["used_range"]
+        need_refresh = self._check_dhcp_server_update(enabled_dhcp_interfaces)
+        need_refresh |= self._check_vlan_update(enabled_dhcp_interfaces)
+        need_refresh |= self._check_vlan_intf_update(enabled_dhcp_interfaces)
+        need_refresh |= self._check_dhcp_server_port_update(enabled_dhcp_interfaces)
+        need_refresh |= self._check_dhcp_server_range_update(used_range)
+        need_refresh |= self._check_vlan_member_update(enabled_dhcp_interfaces)
         return need_refresh
 
-    def _check_vlan_intf_update(self, enabled_dhcp_interfaces):
-        """
-        Check vlan_interface table
-        Args:
-            enabled_dhcp_interfaces: DHCP interface that enabled dhcp_server
-        Returns:
-            Whether need to refresh
-        """
+    def _check_dhcp_server_update(self, enabled_dhcp_interfaces):
         need_refresh = False
-        while self.subscribe_vlan_intf_table.hasData():
-            key, _, _ = self.subscribe_vlan_intf_table.pop()
-            splits = key.split("|")
-            vlan_name = splits[0]
-            ip_address = splits[1].split("/")[0] if len(splits) > 1 else None
-            if vlan_name not in enabled_dhcp_interfaces:
-                continue
-            if ip_address is None or ipaddress.ip_address(ip_address).version != 4:
-                continue
-            need_refresh = True
+        while self.subscribe_dhcp_server_table.hasData():
+            key, op, entry = self.subscribe_dhcp_server_table.pop()
+            # If old state is enabled, need refresh
+            if key in enabled_dhcp_interfaces:
+                need_refresh = True
+            elif op == "SET":
+                for field, value in entry:
+                    if field != "state":
+                        continue
+                    # If old state is not consistent with new state, need refresh
+                    if value == "enabled":
+                        need_refresh = True
+
+        return need_refresh
+
+    def _check_dhcp_server_port_update(self, enabled_dhcp_interfaces):
+        need_refresh = False
+        while self.subscribe_dhcp_server_port_table.hasData():
+            key, _, _ = self.subscribe_dhcp_server_port_table.pop()
+            dhcp_interface = key.split("|")[0]
+            # If dhcp interface is enabled, need to generate new configuration
+            if dhcp_interface in enabled_dhcp_interfaces:
+                need_refresh = True
+        return need_refresh
+
+    def _check_dhcp_server_range_update(self, used_range):
+        need_refresh = False
+        while self.subscribe_dhcp_server_range_table.hasData():
+            key, _, _ = self.subscribe_dhcp_server_range_table.pop()
+            # If range is used, need to generate new configuration
+            if key in used_range:
+                need_refresh = True
+        return need_refresh
+
+    def _check_vlan_member_update(self, enabled_dhcp_interfaces):
+        need_refresh = False
+        while self.subscribe_vlan_member_table.hasData():
+            key, _, _ = self.subscribe_vlan_member_table.pop()
+            dhcp_interface = key.split("|")[0]
+            # If dhcp interface is enabled, need to generate new configuration
+            if dhcp_interface in enabled_dhcp_interfaces:
+                need_refresh = True
         return need_refresh

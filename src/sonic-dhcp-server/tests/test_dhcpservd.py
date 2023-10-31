@@ -7,6 +7,7 @@ from common_utils import MockProc
 from dhcp_server.common.utils import DhcpDbConnector
 from dhcp_server.dhcpservd.dhcp_cfggen import DhcpServCfgGenerator
 from dhcp_server.dhcpservd.dhcpservd import DhcpServd
+from dhcp_server.common.dhcp_db_monitor import DhcpServdDbMonitor
 from swsscommon import swsscommon
 from unittest.mock import patch, call, MagicMock
 
@@ -15,8 +16,10 @@ AF_INET6 = 10
 
 
 def test_dump_dhcp4_config(mock_swsscommon_dbconnector_init):
-    with patch("dhcp_server.dhcpservd.dhcp_cfggen.DhcpServCfgGenerator.generate", return_value="dummy_config") as mock_generate, \
-         patch("dhcp_server.dhcpservd.dhcpservd.DhcpServd._notify_kea_dhcp4_proc", MagicMock()) as mock_notify_kea_dhcp4_proc:
+    with patch("dhcp_server.dhcpservd.dhcp_cfggen.DhcpServCfgGenerator.generate",
+               return_value=("dummy_config", set(), set())) as mock_generate, \
+         patch("dhcp_server.dhcpservd.dhcpservd.DhcpServd._notify_kea_dhcp4_proc",
+               MagicMock()) as mock_notify_kea_dhcp4_proc:
         dhcp_db_connector = DhcpDbConnector()
         dhcp_cfg_generator = DhcpServCfgGenerator(dhcp_db_connector,
                                                   port_map_path="tests/test_data/port-name-alias-map.txt",
@@ -76,13 +79,15 @@ def test_update_dhcp_server_ip(mock_swsscommon_dbconnector_init, mock_parse_port
 
 def test_start(mock_swsscommon_dbconnector_init, mock_parse_port_map_alias, mock_get_render_template):
     with patch.object(DhcpServd, "dump_dhcp4_config") as mock_dump, \
-         patch.object(DhcpServd, "_update_dhcp_server_ip") as mock_update_dhcp_server_ip:
+         patch.object(DhcpServd, "_update_dhcp_server_ip") as mock_update_dhcp_server_ip, \
+         patch.object(DhcpServdDbMonitor, "subscribe_table", return_value=None) as mock_subscribe:
         dhcp_db_connector = DhcpDbConnector()
         dhcp_cfg_generator = DhcpServCfgGenerator(dhcp_db_connector)
         dhcpservd = DhcpServd(dhcp_cfg_generator, dhcp_db_connector)
         dhcpservd.start()
         mock_dump.assert_called_once_with()
         mock_update_dhcp_server_ip.assert_called_once_with()
+        mock_subscribe.assert_called_once_with()
 
 
 class MockIntf(object):

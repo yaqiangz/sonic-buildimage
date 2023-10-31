@@ -59,10 +59,10 @@ class DhcpServCfgGenerator(object):
         # TODO Add support for customizing options
 
         # Parse port table
-        port_ips = self._parse_port(port_ipv4, vlan_interfaces, vlan_members, ranges)
-        render_obj = self._construct_obj_for_template(dhcp_server_ipv4, port_ips, hostname)
+        port_ips, used_ranges = self._parse_port(port_ipv4, vlan_interfaces, vlan_members, ranges)
+        render_obj, enabled_dhcp_interfaces = self._construct_obj_for_template(dhcp_server_ipv4, port_ips, hostname)
 
-        return self._render_config(render_obj)
+        return self._render_config(render_obj), used_ranges, enabled_dhcp_interfaces
 
     def _render_config(self, render_obj):
         output = self.kea_template.render(render_obj)
@@ -97,9 +97,11 @@ class DhcpServCfgGenerator(object):
     def _construct_obj_for_template(self, dhcp_server_ipv4, port_ips, hostname):
         subnets = []
         client_classes = []
+        enabled_dhcp_interfaces = set()
         for dhcp_interface_name, dhcp_config in dhcp_server_ipv4.items():
             if "state" not in dhcp_config or dhcp_config["state"] != "enabled":
                 continue
+            enabled_dhcp_interfaces.add(dhcp_interface_name)
             if dhcp_config["mode"] == "PORT":
                 if dhcp_interface_name not in port_ips:
                     syslog.syslog(syslog.LOG_WARNING, "Cannot get DHCP port config for {}"
@@ -137,7 +139,7 @@ class DhcpServCfgGenerator(object):
             "lease_update_script_path": self.lease_update_script_path,
             "lease_path": self.lease_path
         }
-        return render_obj
+        return render_obj, enabled_dhcp_interfaces
 
     def _get_dhcp_ipv4_tables_from_db(self):
         """
@@ -262,22 +264,24 @@ class DhcpServCfgGenerator(object):
             ranges: Dict of ranges
         Returns:
             Dict of dhcp conf, sample:
-            {
-                'Vlan1000': {
-                    '192.168.0.1/24': {
-                        'etp2': [
-                            ['192.168.0.7', '192.168.0.7']
-                        ],
-                        'etp3': [
-                            ['192.168.0.2', '192.168.0.6'],
-                            ['192.168.0.10', '192.168.0.10']
-                        ]
+                {
+                    'Vlan1000': {
+                        '192.168.0.1/24': {
+                            'etp2': [
+                                ['192.168.0.7', '192.168.0.7']
+                            ],
+                            'etp3': [
+                                ['192.168.0.2', '192.168.0.6'],
+                                ['192.168.0.10', '192.168.0.10']
+                            ]
+                        }
                     }
                 }
-            }
+            Set of used ranges.
         """
         port_ips = {}
         ip_ports = {}
+        used_ranges = set()
         for port_key in list(port_ipv4.keys()):
             port_config = port_ipv4.get(port_key, {})
             # Cannot specify both 'ips' and 'ranges'
@@ -316,6 +320,7 @@ class DhcpServCfgGenerator(object):
                     if range_name not in ranges:
                         syslog.syslog(syslog.LOG_WARNING, f"Range {range_name} is not in range table, skip")
                         continue
+                    used_ranges.add(range_name)
                     range = ranges[range_name]
                     # Loop the IP of the dhcp interface and find the network that target range is in this network.
                     self._match_range_network(dhcp_interface, dhcp_interface_name, port, range, port_ips)
@@ -326,4 +331,4 @@ class DhcpServCfgGenerator(object):
                     ranges = merge_intervals(ip_range)
                     ranges = [[str(range[0]), str(range[1])] for range in ranges]
                     port_ips[dhcp_interface_name][dhcp_interface_ip][port_name] = ranges
-        return port_ips
+        return port_ips, used_ranges

@@ -191,7 +191,7 @@ def test_parse_port_alias(mock_swsscommon_dbconnector_init, mock_get_render_temp
     dhcp_db_connector = DhcpDbConnector()
     dhcp_cfg_generator = DhcpServCfgGenerator(dhcp_db_connector,
                                               port_map_path="tests/test_data/port-name-alias-map.txt")
-    assert dhcp_cfg_generator.port_alias_map == {'Ethernet24': 'etp7', 'Ethernet28': 'etp8'}
+    assert dhcp_cfg_generator.port_alias_map == {"Ethernet24": "etp7", "Ethernet28": "etp8"}
 
 
 @pytest.mark.parametrize("is_success", [True, False])
@@ -236,8 +236,11 @@ def test_parse_port(test_config_db, mock_swsscommon_dbconnector_init, mock_get_r
     tested_ranges = expected_parsed_range
     ipv4_port = mock_config_db.config_db.get("DHCP_SERVER_IPV4_PORT")
     vlan_members = mock_config_db.config_db.get("VLAN_MEMBER").keys()
-    parse_result = dhcp_cfg_generator._parse_port(ipv4_port, tested_vlan_interfaces, vlan_members, tested_ranges)
-    assert parse_result == (expected_parsed_port if test_config_db == "mock_config_db.json" else {})
+    parsed_port, used_ranges = dhcp_cfg_generator._parse_port(ipv4_port, tested_vlan_interfaces, vlan_members,
+                                                              tested_ranges)
+    assert parsed_port == (expected_parsed_port if test_config_db == "mock_config_db.json" else {})
+    assert used_ranges == ({"range2", "range1", "range0", "range3"}
+                           if test_config_db == "mock_config_db.json" else set())
 
 
 def test_construct_obj_for_template(mock_swsscommon_dbconnector_init, mock_parse_port_map_alias,
@@ -246,9 +249,12 @@ def test_construct_obj_for_template(mock_swsscommon_dbconnector_init, mock_parse
     dhcp_db_connector = DhcpDbConnector()
     dhcp_cfg_generator = DhcpServCfgGenerator(dhcp_db_connector)
     tested_hostname = "sonic-host"
-    render_obj = dhcp_cfg_generator._construct_obj_for_template(mock_config_db.config_db.get("DHCP_SERVER_IPV4"),
-                                                                tested_parsed_port, tested_hostname)
+    render_obj, enabled_dhcp_interfaces = dhcp_cfg_generator._construct_obj_for_template(mock_config_db.config_db
+                                                                                         .get("DHCP_SERVER_IPV4"),
+                                                                                         tested_parsed_port,
+                                                                                         tested_hostname)
     assert render_obj == expected_render_obj
+    assert enabled_dhcp_interfaces == {"Vlan1000", "Vlan4000", "Vlan3000"}
 
 
 @pytest.mark.parametrize("with_port_config", [True, False])
