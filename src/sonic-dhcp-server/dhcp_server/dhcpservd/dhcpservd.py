@@ -50,9 +50,10 @@ class DhcpServd(object):
         """
         Generate kea-dhcp4 config file and dump it to config folder
         """
-        kea_dhcp4_config, used_ranges, enabled_dhcp_interfaces = self.dhcp_cfg_generator.generate()
+        kea_dhcp4_config, used_ranges, enabled_dhcp_interfaces, used_options = self.dhcp_cfg_generator.generate()
         self.used_range = used_ranges
         self.enabled_dhcp_interfaces = enabled_dhcp_interfaces
+        self.used_options = used_options
         with open(self.kea_dhcp4_config_path, "w") as write_file:
             write_file.write(kea_dhcp4_config)
             # After refresh kea-config, we need to SIGHUP kea-dhcp4 process to read new config
@@ -86,7 +87,8 @@ class DhcpServd(object):
     def wait(self):
         while True:
             res = self.dhcp_servd_monitor.check_db_update({"enabled_dhcp_interfaces": self.enabled_dhcp_interfaces,
-                                                           "used_range": self.used_range})
+                                                           "used_range": self.used_range,
+                                                           "used_options": self.used_options})
             if res:
                 self.dump_dhcp4_config()
 

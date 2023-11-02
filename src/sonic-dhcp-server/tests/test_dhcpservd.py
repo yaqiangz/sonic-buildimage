@@ -17,7 +17,7 @@ AF_INET6 = 10
 
 def test_dump_dhcp4_config(mock_swsscommon_dbconnector_init):
     with patch("dhcp_server.dhcpservd.dhcp_cfggen.DhcpServCfgGenerator.generate",
-               return_value=("dummy_config", set(), set())) as mock_generate, \
+               return_value=("dummy_config", set(), set(), set())) as mock_generate, \
          patch("dhcp_server.dhcpservd.dhcpservd.DhcpServd._notify_kea_dhcp4_proc",
                MagicMock()) as mock_notify_kea_dhcp4_proc:
         dhcp_db_connector = DhcpDbConnector()

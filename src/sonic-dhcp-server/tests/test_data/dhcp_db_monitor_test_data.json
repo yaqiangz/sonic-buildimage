@@ -217,5 +217,10 @@
             ],
             "exp_res": false
         }
+    ],
+    "test_pop_db_update_empty": [
+        {
+            "table": []
+        }
     ]
 }

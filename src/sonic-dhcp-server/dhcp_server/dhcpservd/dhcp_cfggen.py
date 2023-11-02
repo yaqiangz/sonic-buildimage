@@ -5,7 +5,7 @@ import os
 import syslog
 
 from jinja2 import Environment, FileSystemLoader
-from dhcp_server.common.utils import merge_intervals
+from dhcp_server.common.utils import merge_intervals, validate_str_type
 
 PORT_MAP_PATH = "/tmp/port-name-alias-map.txt"
 UNICODE_TYPE = str
@@ -19,6 +19,9 @@ DEFAULT_LEASE_PATH = "/tmp/kea-lease.csv"
 KEA_DHCP4_CONF_TEMPLATE_PATH = "/usr/share/sonic/templates/kea-dhcp4.conf.j2"
 # Default lease time of DHCP
 DEFAULT_LEASE_TIME = 900
+SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
+DHCP_OPTION_FILE = f"{SCRIPT_DIR}/dhcp_option.csv"
+SUPPORT_DHCP_OPTION_TYPE = ["binary", "boolean", "ipv4-address", "string", "uint8", "uint16", "uint32"]
 
 
 class DhcpServCfgGenerator(object):
@@ -27,7 +30,7 @@ class DhcpServCfgGenerator(object):
     lease_path = ""
 
     def __init__(self, dhcp_db_connector, lease_path=DEFAULT_LEASE_PATH, port_map_path=PORT_MAP_PATH,
-                 lease_update_script_path=LEASE_UPDATE_SCRIPT_PATH,
+                 lease_update_script_path=LEASE_UPDATE_SCRIPT_PATH, dhcp_option_path=DHCP_OPTION_FILE,
                  kea_conf_template_path=KEA_DHCP4_CONF_TEMPLATE_PATH):
         self.db_connector = dhcp_db_connector
         self.lease_path = lease_path
@@ -36,12 +39,16 @@ class DhcpServCfgGenerator(object):
         self._parse_port_map_alias(port_map_path)
         # Get kea config template
         self._get_render_template(kea_conf_template_path)
+        self._read_dhcp_option(dhcp_option_path)
 
     def generate(self):
         """
         Generate dhcp server config
         Returns:
-            config dict
+            config string
+            set of ranges used
+            set of enabled dhcp interface
+            set of used options
         """
         # Generate from running config_db
         # Get host name
@@ -51,18 +58,42 @@ class DhcpServCfgGenerator(object):
         vlan_interface = self.db_connector.get_config_db_table("VLAN_INTERFACE")
         vlan_member_table = self.db_connector.get_config_db_table("VLAN_MEMBER")
         vlan_interfaces, vlan_members = self._parse_vlan(vlan_interface, vlan_member_table)
-
         dhcp_server_ipv4, customized_options_ipv4, range_ipv4, port_ipv4 = self._get_dhcp_ipv4_tables_from_db()
         # Parse range table
         ranges = self._parse_range(range_ipv4)
 
-        # TODO Add support for customizing options
-
         # Parse port table
         port_ips, used_ranges = self._parse_port(port_ipv4, vlan_interfaces, vlan_members, ranges)
-        render_obj, enabled_dhcp_interfaces = self._construct_obj_for_template(dhcp_server_ipv4, port_ips, hostname)
+        customized_options = self._parse_customized_options(customized_options_ipv4)
+        render_obj, enabled_dhcp_interfaces, used_options = self._construct_obj_for_template(dhcp_server_ipv4, port_ips,
+                                                                                             hostname,
+                                                                                             customized_options)
+        return self._render_config(render_obj), used_ranges, enabled_dhcp_interfaces, used_options
 
-        return self._render_config(render_obj), used_ranges, enabled_dhcp_interfaces
+    def _parse_customized_options(self, customized_options_ipv4):
+        customized_options = {}
+        for option_name, config in customized_options_ipv4.items():
+            if config["id"] not in self.dhcp_option.keys():
+                syslog.syslog(syslog.LOG_WARNING, "Unsupported option: {}, currently only support unassigned options"
+                              .format(config["id"]))
+                continue
+            option_type = config["type"] if "type" in config else "string"
+            if option_type not in SUPPORT_DHCP_OPTION_TYPE:
+                syslog.syslog(syslog.LOG_WARNING, "Unsupported type: {}, currently only support {}"
+                              .format(option_type, SUPPORT_DHCP_OPTION_TYPE))
+                continue
+            if not validate_str_type(option_type, config["value"]):
+                syslog.syslog(syslog.LOG_WARNING, "Option type [{}] and value [{}] are not consistent"
+                              .format(option_type, config["value"]))
+                continue
+            always_send = config["always_send"] if "always_send" in config else "true"
+            customized_options[option_name] = {
+                "id": config["id"],
+                "value": config["value"],
+                "type": option_type,
+                "always_send": always_send
+            }
+        return customized_options
 
     def _render_config(self, render_obj):
         output = self.kea_template.render(render_obj)
@@ -94,10 +125,11 @@ class DhcpServCfgGenerator(object):
                     continue
                 self.port_alias_map[splits[0]] = splits[1]
 
-    def _construct_obj_for_template(self, dhcp_server_ipv4, port_ips, hostname):
+    def _construct_obj_for_template(self, dhcp_server_ipv4, port_ips, hostname, customized_options):
         subnets = []
         client_classes = []
         enabled_dhcp_interfaces = set()
+        used_options = set()
         for dhcp_interface_name, dhcp_config in dhcp_server_ipv4.items():
             if "state" not in dhcp_config or dhcp_config["state"] != "enabled":
                 continue
@@ -107,6 +139,13 @@ class DhcpServCfgGenerator(object):
                     syslog.syslog(syslog.LOG_WARNING, "Cannot get DHCP port config for {}"
                                   .format(dhcp_interface_name))
                     continue
+                curr_options = {}
+                for option in dhcp_config["customized_options"]:
+                    if option in customized_options.keys():
+                        curr_options[option] = {
+                            "always_send": customized_options[option]["always_send"],
+                            "value": customized_options[option]["value"]
+                        }
                 for dhcp_interface_ip, port_config in port_ips[dhcp_interface_name].items():
                     pools = []
                     for port_name, ip_ranges in port_config.items():
@@ -130,16 +169,19 @@ class DhcpServCfgGenerator(object):
                         "pools": pools,
                         "gateway": dhcp_config["gateway"],
                         "server_id": dhcp_interface_ip.split("/")[0],
-                        "lease_time": dhcp_config["lease_time"]
+                        "lease_time": dhcp_config["lease_time"],
+                        "customized_options": curr_options
                     }
+                    used_options = used_options | set(subnet_obj["customized_options"])
                     subnets.append(subnet_obj)
         render_obj = {
             "subnets": subnets,
             "client_classes": client_classes,
             "lease_update_script_path": self.lease_update_script_path,
-            "lease_path": self.lease_path
+            "lease_path": self.lease_path,
+            "customized_options": customized_options
         }
-        return render_obj, enabled_dhcp_interfaces
+        return render_obj, enabled_dhcp_interfaces, used_options
 
     def _get_dhcp_ipv4_tables_from_db(self):
         """
@@ -332,3 +374,16 @@ class DhcpServCfgGenerator(object):
                     ranges = [[str(range[0]), str(range[1])] for range in ranges]
                     port_ips[dhcp_interface_name][dhcp_interface_ip][port_name] = ranges
         return port_ips, used_ranges
+
+    def _read_dhcp_option(self, file_path):
+        # TODO current only support unassigned options, use dict in case support more options in the future
+        # key: option cod, value: option type list
+        self.dhcp_option = {}
+        with open(file_path, "r") as file:
+            lines = file.readlines()
+            for line in lines:
+                if "Code,Type,Customized Type" in line:
+                    continue
+                splits = line.strip().split(",")
+                if splits[-1] == "unassigned":
+                    self.dhcp_option[splits[0]] = []

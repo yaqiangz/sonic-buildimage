@@ -1,7 +1,11 @@
+import ipaddress
+import string
+import syslog
 from swsscommon import swsscommon
 
 DEFAULT_REDIS_HOST = "127.0.0.1"
 DEFAULT_REDIS_PORT = 6379
+SUPPORT_TYPE = ["binary", "boolean", "ipv4-address", "string", "uint8", "uint16", "uint32"]
 
 
 class DhcpDbConnector(object):
@@ -91,6 +95,43 @@ def merge_intervals(intervals):
         else:
             ret[-1][-1] = max(ret[-1][-1], interval[-1])
     return ret
+
+
+def validate_str_type(type, value):
+    """
+    To validate whether type is consistent with string value
+    Args:
+        type: string, value type
+        value: checked value
+    Returns:
+        True, type consistent with value
+        False, type not consistent with value
+    """
+    if not isinstance(value, str):
+        return False
+    if type not in SUPPORT_TYPE:
+        syslog.syslog(syslog.LOG_ERR, "Unsupported validate type: {}".format(type))
+        return False
+    if type == "string":
+        return True
+    if type == "binary":
+        if len(value) == 0 or len(value) % 2 != 0:
+            return False
+        return all(c in set(string.hexdigits) for c in value)
+    if type == "boolean":
+        return value in ["true", "false", "0", "1"]
+    if type == "ipv4-address":
+        try:
+            if len(value.split(".")) != 4:
+                return False
+            return ipaddress.ip_address(value).version == 4
+        except ValueError:
+            return False
+    if type.startswith("uint"):
+        if not value.isdigit():
+            return False
+        length = int("".join([c for c in type if c.isdigit()]))
+        return 0 <= int(value) <= int(pow(2, length)) - 1
 
 
 def _parse_table_to_dict(table):
