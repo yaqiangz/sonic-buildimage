@@ -2,6 +2,7 @@
 
 import ipaddress
 import os
+import sys
 import syslog
 
 from jinja2 import Environment, FileSystemLoader
@@ -74,18 +75,21 @@ class DhcpServCfgGenerator(object):
         customized_options = {}
         for option_name, config in customized_options_ipv4.items():
             if config["id"] not in self.dhcp_option.keys():
-                syslog.syslog(syslog.LOG_WARNING, "Unsupported option: {}, currently only support unassigned options"
+                syslog.syslog(syslog.LOG_ERR, "Unsupported option: {}, currently only support unassigned options"
                               .format(config["id"]))
-                continue
+                sys.exit(1)
             option_type = config["type"] if "type" in config else "string"
             if option_type not in SUPPORT_DHCP_OPTION_TYPE:
-                syslog.syslog(syslog.LOG_WARNING, "Unsupported type: {}, currently only support {}"
+                syslog.syslog(syslog.LOG_ERR, "Unsupported type: {}, currently only support {}"
                               .format(option_type, SUPPORT_DHCP_OPTION_TYPE))
-                continue
+                sys.exit(1)
             if not validate_str_type(option_type, config["value"]):
-                syslog.syslog(syslog.LOG_WARNING, "Option type [{}] and value [{}] are not consistent"
+                syslog.syslog(syslog.LOG_ERR, "Option type [{}] and value [{}] are not consistent"
                               .format(option_type, config["value"]))
-                continue
+                sys.exit(1)
+            if option_type == "string" and len(config["value"]) > 253:
+                syslog.syslog(syslog.LOG_ERR, "String option value too long: {}".format(option_name))
+                sys.exit(1)
             always_send = config["always_send"] if "always_send" in config else "true"
             customized_options[option_name] = {
                 "id": config["id"],

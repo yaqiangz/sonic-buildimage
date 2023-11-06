@@ -1,8 +1,9 @@
 import copy
 import ipaddress
 import json
+import sys
 import pytest
-from common_utils import MockConfigDb, mock_get_config_db_table
+from common_utils import MockConfigDb, mock_get_config_db_table, mock_exit_func
 from dhcp_server.common.utils import DhcpDbConnector
 from dhcp_server.dhcpservd.dhcp_cfggen import DhcpServCfgGenerator
 from unittest.mock import patch
@@ -202,6 +203,61 @@ expected_render_obj = {
         }
     }
 }
+tested_options_data = [
+    {
+        "data": {
+            "option223": {
+                "id": "223",
+                "type": "string",
+                "value": "dummy_value"
+            }
+        },
+        "res": True
+    },
+    {
+        "data": {
+            "option60": {
+                "id": "60",
+                "type": "string",
+                "value": "dummy_value"
+            }
+        },
+        "res": False
+    },
+    {
+        "data": {
+            "option222": {
+                "id": "222",
+                "type": "text",
+                "value": "dummy_value"
+            }
+        },
+        "res": False
+    },
+    {
+        "data": {
+            "option219": {
+                "id": "219",
+                "type": "uint8",
+                "value": "259"
+            }
+        },
+        "res": False
+    },
+    {
+        "data": {
+            "option223": {
+                "id": "223",
+                "type": "string",
+                "value": "long_valuelong_valuelong_valuelong_valuelong_valuelong_valuelong_valuelong_valuelong_value" +
+                         "long_valuelong_valuelong_valuelong_valuelong_valuelong_valuelong_valuelong_valuelong_value" +
+                         "long_valuelong_valuelong_valuelong_valuelong_valuelong_valuelong_valuelong_valuelong_value" +
+                         "long_valuelong_valuelong_valuelong_valuelong_value"
+            }
+        },
+        "res": False
+    }
+]
 
 
 def test_parse_port_alias(mock_swsscommon_dbconnector_init, mock_get_render_template):
@@ -308,18 +364,23 @@ def test_render_config(mock_swsscommon_dbconnector_init, mock_parse_port_map_ali
     assert json.loads(config) == expected_dhcp_config if with_port_config else expected_dhcp_config_without_port_config
 
 
+@pytest.mark.parametrize("tested_options_data", tested_options_data)
 def test_parse_customized_options(mock_swsscommon_dbconnector_init, mock_get_render_template,
-                                  mock_parse_port_map_alias):
-    mock_config_db = MockConfigDb()
-    dhcp_db_connector = DhcpDbConnector()
-    dhcp_cfg_generator = DhcpServCfgGenerator(dhcp_db_connector)
-    customized_options_ipv4 = mock_config_db.config_db.get("DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS")
-    customized_options = dhcp_cfg_generator._parse_customized_options(customized_options_ipv4)
-    assert customized_options == {
-        "option223": {
-            "id": "223",
-            "value": "dummy_value",
-            "type": "string",
-            "always_send": "true"
-        }
-    }
+                                  mock_parse_port_map_alias, tested_options_data):
+    with patch.object(sys, "exit", side_effect=mock_exit_func):
+        dhcp_db_connector = DhcpDbConnector()
+        dhcp_cfg_generator = DhcpServCfgGenerator(dhcp_db_connector)
+        customized_options_ipv4 = tested_options_data["data"]
+        try:
+            customized_options = dhcp_cfg_generator._parse_customized_options(customized_options_ipv4)
+            assert customized_options == {
+                "option223": {
+                    "id": "223",
+                    "value": "dummy_value",
+                    "type": "string",
+                    "always_send": "true"
+                }
+            }
+            assert tested_options_data["res"]
+        except SystemExit:
+            assert not tested_options_data["res"]

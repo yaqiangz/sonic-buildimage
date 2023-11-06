@@ -80,3 +80,7 @@ class MockProc(object):
 class MockPopen(object):
     def __init__(self, pid):
         self.pid = pid
+
+
+def mock_exit_func(status):
+    raise SystemExit(status)
