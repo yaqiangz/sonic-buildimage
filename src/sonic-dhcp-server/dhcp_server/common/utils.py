@@ -110,7 +110,6 @@ def validate_str_type(type, value):
     if not isinstance(value, str):
         return False
     if type not in SUPPORT_TYPE:
-        syslog.syslog(syslog.LOG_ERR, "Unsupported validate type: {}".format(type))
         return False
     if type == "string":
         return True
@@ -119,7 +118,7 @@ def validate_str_type(type, value):
             return False
         return all(c in set(string.hexdigits) for c in value)
     if type == "boolean":
-        return value in ["true", "false", "0", "1"]
+        return value in ["true", "false"]
     if type == "ipv4-address":
         try:
             if len(value.split(".")) != 4:
@@ -132,6 +131,7 @@ def validate_str_type(type, value):
             return False
         length = int("".join([c for c in type if c.isdigit()]))
         return 0 <= int(value) <= int(pow(2, length)) - 1
+    return False
 
 
 def _parse_table_to_dict(table):

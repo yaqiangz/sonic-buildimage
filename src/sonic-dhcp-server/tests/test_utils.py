@@ -31,16 +31,18 @@ validate_str_type_data = [
     ["string", 123, False],
     ["string", "123", True],
     ["binary", "01020304ef", True],
+    # False because we only support octet-based binary
     ["binary", "01020304e", False],
     ["binary", "0102ab0304ef", True],
     ["binary", "we", False],
     ["boolean", "true", True],
     ["boolean", "false", True],
-    ["boolean", "0", True],
-    ["boolean", "1", True],
+    ["boolean", "0", False],
+    ["boolean", "1", False],
     ["boolean", True, False],
     ["boolean", "213", False],
     ["ipv4-address", "192.168.0.1", True],
+    ["ipv4-address", "300.168.0.1", False],
     ["ipv4-address", 123, False],
     ["ipv4-address", "123", False],
     ["ipv4-address", "192.168.0.1/24", False],
@@ -52,6 +54,7 @@ validate_str_type_data = [
     ["uint16", "65536", False],
     ["uint32", "4294967296", False],
     ["uint32", "65536", True],
+    # False because we don't support uint64
     ["uint64", "65536", False]
 ]
 

@@ -1,6 +1,5 @@
 import ipaddress
 import syslog
-from abc import abstractmethod
 from swsscommon import swsscommon
 
 DHCP_SERVER_IPV4 = "DHCP_SERVER_IPV4"
@@ -13,66 +12,36 @@ VLAN_INTERFACE = "VLAN_INTERFACE"
 DEFAULT_SELECT_TIMEOUT = 5000  # millisecond
 
 
-class DhcpDbMonitor(object):
-    subscribe_vlan_table = None
-    subscribe_vlan_intf_table = None
-
-    def __init__(self, db_connector, select_timeout=DEFAULT_SELECT_TIMEOUT):
-        self.db_connector = db_connector
-        self.sel = swsscommon.Select()
-        self.select_timeout = select_timeout
-
-    @abstractmethod
-    def subscribe_table(self):
+class _DbEventExecutor(object):
+    def check_vlan_update(self, enabled_dhcp_interfaces, subscribe_vlan_table):
         """
-        Subcribe db table to monitor
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def _do_check(self):
-        """
-        Check whether interested table content changed
-        """
-        raise NotImplementedError
-
-    def check_db_update(self, check_param):
-        """
-        Fetch db and check update
-        """
-        state, _ = self.sel.select(self.select_timeout)
-        if state == swsscommon.Select.TIMEOUT or state != swsscommon.Select.OBJECT:
-            return False
-        return self._do_check(check_param)
-
-    def _check_vlan_update(self, enabled_dhcp_interfaces):
-        """
-        Check vlan table
+        Check vlan table update event
         Args:
             enabled_dhcp_interfaces: DHCP interface that enabled dhcp_server
+            subscribe_vlan_table: Subscirbe table object contains db change event
         Returns:
             Whether need to refresh
         """
-        need_refresh = False
-        while self.subscribe_vlan_table.hasData():
-            key, _, _ = self.subscribe_vlan_table.pop()
+        while subscribe_vlan_table.hasData():
+            key, _, _ = subscribe_vlan_table.pop()
             # For vlan doesn't have related dhcp entry, not need to refresh dhcrelay process
             if key not in enabled_dhcp_interfaces:
                 continue
-            need_refresh = True
-        return need_refresh
+            self.pop_db_update_event(subscribe_vlan_table)
+            return True
+        return False
 
-    def _check_vlan_intf_update(self, enabled_dhcp_interfaces):
+    def check_vlan_intf_update(self, enabled_dhcp_interfaces, subscribe_vlan_intf_table):
         """
         Check vlan_interface table
         Args:
             enabled_dhcp_interfaces: DHCP interface that enabled dhcp_server
+            subscribe_vlan_intf_table: Subscirbe table object contains db change event
         Returns:
             Whether need to refresh
         """
-        need_refresh = False
-        while self.subscribe_vlan_intf_table.hasData():
-            key, _, _ = self.subscribe_vlan_intf_table.pop()
+        while subscribe_vlan_intf_table.hasData():
+            key, _, _ = subscribe_vlan_intf_table.pop()
             splits = key.split("|")
             vlan_name = splits[0]
             ip_address = splits[1].split("/")[0] if len(splits) > 1 else None
@@ -81,10 +50,11 @@ class DhcpDbMonitor(object):
                 continue
             if ip_address is None or ipaddress.ip_address(ip_address).version != 4:
                 continue
-            need_refresh = True
-        return need_refresh
+            self.pop_db_update_event(subscribe_vlan_intf_table)
+            return True
+        return False
 
-    def _pop_db_update_event(self, subscribe_table):
+    def pop_db_update_event(self, subscribe_table):
         """
         Pop all db update event
         """
@@ -92,10 +62,21 @@ class DhcpDbMonitor(object):
             _, _, _ = subscribe_table.pop()
 
 
-class DhcpRelaydDbMonitor(DhcpDbMonitor):
+class DhcpRelaydDbMonitor(object):
     subscribe_dhcp_server_table = None
+    subscribe_vlan_table = None
+    subscribe_vlan_intf_table = None
+
+    def __init__(self, db_connector, select_timeout=DEFAULT_SELECT_TIMEOUT):
+        self.db_connector = db_connector
+        self.sel = swsscommon.Select()
+        self.select_timeout = select_timeout
+        self.db_event_executor = _DbEventExecutor()
 
     def subscribe_table(self):
+        """
+        Subcribe db table to monitor
+        """
         self.subscribe_dhcp_server_table = swsscommon.SubscriberStateTable(self.db_connector.config_db,
                                                                            DHCP_SERVER_IPV4)
         self.subscribe_vlan_table = swsscommon.SubscriberStateTable(self.db_connector.config_db, VLAN)
@@ -105,18 +86,20 @@ class DhcpRelaydDbMonitor(DhcpDbMonitor):
         self.sel.addSelectable(self.subscribe_vlan_table)
         self.sel.addSelectable(self.subscribe_vlan_intf_table)
 
-    def _do_check(self, check_param):
-        if "enabled_dhcp_interfaces" not in check_param:
-            # Need to refresh dhcrelay related proccesses, so clear table update event to avoid unlimited updates
-            self._pop_db_update_event(self.subscribe_dhcp_server_table)
-            self._pop_db_update_event(self.subscribe_vlan_table)
-            self._pop_db_update_event(self.subscribe_vlan_intf_table)
-            syslog.syslog(syslog.LOG_ERR, "Cannot get enabled_dhcp_interfaces")
-            return (True, True, True)
-        enabled_dhcp_interfaces = check_param["enabled_dhcp_interfaces"]
+    def check_db_update(self, enabled_dhcp_interfaces):
+        """
+        Fetch db and check update
+        Args:
+            enabled_dhcp_interfaces: enabled DHCP interfaces
+        Returns:
+            Tuple of dhcp_server table result, vlan table result, vlan_intf table result
+        """
+        state, _ = self.sel.select(self.select_timeout)
+        if state == swsscommon.Select.TIMEOUT or state != swsscommon.Select.OBJECT:
+            return (False, False, False)
         return (self._check_dhcp_server_update(enabled_dhcp_interfaces),
-                self._check_vlan_update(enabled_dhcp_interfaces),
-                self._check_vlan_intf_update(enabled_dhcp_interfaces))
+                self.db_event_executor.check_vlan_update(enabled_dhcp_interfaces, self.subscribe_vlan_table),
+                self.db_event_executor.check_vlan_intf_update(enabled_dhcp_interfaces, self.subscribe_vlan_intf_table))
 
     def _check_dhcp_server_update(self, enabled_dhcp_interfaces):
         """
@@ -142,10 +125,13 @@ class DhcpRelaydDbMonitor(DhcpDbMonitor):
             if op == "DEL":
                 if key in enabled_dhcp_interfaces:
                     need_refresh = True
-        return need_refresh
+            if need_refresh:
+                self.db_event_executor.pop_db_update_event(self.subscribe_dhcp_server_table)
+                return True
+        return False
 
 
-class DhcpServdDbMonitor(DhcpDbMonitor):
+class DhcpServdDbMonitor(object):
     subscribe_dhcp_server_table = None
     subscribe_dhcp_server_port_table = None
     subscribe_dhcp_server_range_table = None
@@ -154,7 +140,16 @@ class DhcpServdDbMonitor(DhcpDbMonitor):
     subscribe_vlan_intf_table = None
     subscribe_dhcp_server_options_table = None
 
+    def __init__(self, db_connector, select_timeout=DEFAULT_SELECT_TIMEOUT):
+        self.db_connector = db_connector
+        self.sel = swsscommon.Select()
+        self.select_timeout = select_timeout
+        self.db_event_executor = _DbEventExecutor()
+
     def subscribe_table(self):
+        """
+        Subcribe db table to monitor
+        """
         self.subscribe_dhcp_server_table = swsscommon.SubscriberStateTable(self.db_connector.config_db,
                                                                            DHCP_SERVER_IPV4)
         self.subscribe_dhcp_server_port_table = swsscommon.SubscriberStateTable(self.db_connector.config_db,
@@ -175,25 +170,23 @@ class DhcpServdDbMonitor(DhcpDbMonitor):
         self.sel.addSelectable(self.subscribe_vlan_member_table)
         self.sel.addSelectable(self.subscribe_vlan_intf_table)
 
-    def _do_check(self, check_param):
-        if "enabled_dhcp_interfaces" not in check_param or "used_range" not in check_param or \
-           "used_options" not in check_param:
-            # Need to regenerate config, so clear table update event to avoid unlimited updates
-            self._pop_db_update_event(self.subscribe_dhcp_server_table)
-            self._pop_db_update_event(self.subscribe_dhcp_server_port_table)
-            self._pop_db_update_event(self.subscribe_dhcp_server_range_table)
-            self._pop_db_update_event(self.subscribe_dhcp_server_options_table)
-            self._pop_db_update_event(self.subscribe_vlan_table)
-            self._pop_db_update_event(self.subscribe_vlan_member_table)
-            self._pop_db_update_event(self.subscribe_vlan_intf_table)
-            syslog.syslog(syslog.LOG_ERR, "Cannot get enough check param")
-            return True
-        enabled_dhcp_interfaces = check_param["enabled_dhcp_interfaces"]
-        used_range = check_param["used_range"]
-        used_options = check_param["used_options"]
+    def check_db_update(self, enabled_dhcp_interfaces, used_range, used_options):
+        """
+        Fetch db and check update
+        Args:
+            enabled_dhcp_interfaces: enabled DHCP interfaces
+            used_range: used range
+            used_options: used DHCP options
+        Returns:
+            whether need to re-generate configuration of kea-dhcp-server
+        """
+        state, _ = self.sel.select(self.select_timeout)
+        if state == swsscommon.Select.TIMEOUT or state != swsscommon.Select.OBJECT:
+            return False
         need_refresh = self._check_dhcp_server_update(enabled_dhcp_interfaces)
-        need_refresh |= self._check_vlan_update(enabled_dhcp_interfaces)
-        need_refresh |= self._check_vlan_intf_update(enabled_dhcp_interfaces)
+        need_refresh |= self.db_event_executor.check_vlan_update(enabled_dhcp_interfaces, self.subscribe_vlan_table)
+        need_refresh |= self.db_event_executor.check_vlan_intf_update(enabled_dhcp_interfaces,
+                                                                      self.subscribe_vlan_intf_table)
         need_refresh |= self._check_dhcp_server_port_update(enabled_dhcp_interfaces)
         need_refresh |= self._check_dhcp_server_range_update(used_range)
         need_refresh |= self._check_dhcp_server_option_update(used_options)
@@ -214,43 +207,46 @@ class DhcpServdDbMonitor(DhcpDbMonitor):
                     # If old state is not consistent with new state, need refresh
                     if value == "enabled":
                         need_refresh = True
+            if need_refresh:
+                self.db_event_executor.pop_db_update_event(self.subscribe_dhcp_server_table)
+                return True
 
-        return need_refresh
+        return False
 
     def _check_dhcp_server_port_update(self, enabled_dhcp_interfaces):
-        need_refresh = False
         while self.subscribe_dhcp_server_port_table.hasData():
             key, _, _ = self.subscribe_dhcp_server_port_table.pop()
             dhcp_interface = key.split("|")[0]
             # If dhcp interface is enabled, need to generate new configuration
             if dhcp_interface in enabled_dhcp_interfaces:
-                need_refresh = True
-        return need_refresh
+                self.db_event_executor.pop_db_update_event(self.subscribe_dhcp_server_port_table)
+                return True
+        return False
 
     def _check_dhcp_server_range_update(self, used_range):
-        need_refresh = False
         while self.subscribe_dhcp_server_range_table.hasData():
             key, _, _ = self.subscribe_dhcp_server_range_table.pop()
             # If range is used, need to generate new configuration
             if key in used_range:
-                need_refresh = True
-        return need_refresh
+                self.db_event_executor.pop_db_update_event(self.subscribe_dhcp_server_range_table)
+                return True
+        return False
 
     def _check_dhcp_server_option_update(self, used_options):
-        need_refresh = False
         while self.subscribe_dhcp_server_options_table.hasData():
             key, _, _ = self.subscribe_dhcp_server_options_table.pop()
             # If range is used, need to generate new configuration
             if key in used_options:
-                need_refresh = True
-        return need_refresh
+                self.db_event_executor.pop_db_update_event(self.subscribe_dhcp_server_options_table)
+                return True
+        return False
 
     def _check_vlan_member_update(self, enabled_dhcp_interfaces):
-        need_refresh = False
         while self.subscribe_vlan_member_table.hasData():
             key, _, _ = self.subscribe_vlan_member_table.pop()
             dhcp_interface = key.split("|")[0]
             # If dhcp interface is enabled, need to generate new configuration
             if dhcp_interface in enabled_dhcp_interfaces:
-                need_refresh = True
-        return need_refresh
+                self.db_event_executor.pop_db_update_event(self.subscribe_vlan_member_table)
+                return True
+        return False

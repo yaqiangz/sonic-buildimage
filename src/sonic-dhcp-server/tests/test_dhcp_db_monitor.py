@@ -1,7 +1,7 @@
 import json
 import pytest
 from common_utils import MockSubscribeTable
-from dhcp_server.common.dhcp_db_monitor import DhcpDbMonitor, DhcpRelaydDbMonitor, DhcpServdDbMonitor
+from dhcp_server.common.dhcp_db_monitor import DhcpRelaydDbMonitor, DhcpServdDbMonitor, _DbEventExecutor
 from dhcp_server.common.utils import DhcpDbConnector
 from swsscommon import swsscommon
 from unittest.mock import patch, call, ANY, PropertyMock
@@ -31,55 +31,31 @@ def get_tested_data(test_name):
     return tested_data
 
 
-@pytest.mark.parametrize("select_result", [swsscommon.Select.TIMEOUT, swsscommon.Select.OBJECT])
-def test_dhcp_db_monitor(mock_swsscommon_dbconnector_init, select_result):
-    db_connector = DhcpDbConnector()
-    dhcp_db_monitor = DhcpDbMonitor(db_connector)
-    try:
-        dhcp_db_monitor.subscribe_table()
-    except NotImplementedError:
-        pass
-    try:
-        dhcp_db_monitor._do_check()
-    except NotImplementedError:
-        pass
-    with patch.object(DhcpDbMonitor, "_do_check", return_value=None) as mock_do_check, \
-         patch.object(swsscommon.Select, "select", return_value=(select_result, None)):
-        dhcp_db_monitor.check_db_update("mock_param")
-        if select_result == swsscommon.Select.TIMEOUT:
-            mock_do_check.assert_not_called()
-        elif select_result == swsscommon.Select.OBJECT:
-            mock_do_check.assert_called_once_with("mock_param")
+@pytest.mark.parametrize("tested_data", [get_tested_data("test_vlan_intf_update"),
+                                         get_tested_data("test_pop_db_update_empty")])
+def test_db_event_executor_pop_db_update_event(mock_swsscommon_dbconnector_init, tested_data):
+    subscribe_vlan_table = MockSubscribeTable(tested_data[0]["table"])
+    db_event_executor = _DbEventExecutor()
+    db_event_executor.pop_db_update_event(subscribe_vlan_table)
+    assert not subscribe_vlan_table.hasData()
 
 
 @pytest.mark.parametrize("tested_data", get_tested_data("test_vlan_update"))
-def test_dhcp_db_monitor_check_vlan_update(mock_swsscommon_dbconnector_init, tested_data):
-    with patch.object(DhcpDbMonitor, "subscribe_vlan_table", return_value=MockSubscribeTable(tested_data["table"]),
-                      new_callable=PropertyMock):
-        db_connector = DhcpDbConnector()
-        dhcp_relayd_db_monitor = DhcpDbMonitor(db_connector)
-        check_res = dhcp_relayd_db_monitor._check_vlan_update(set(["Vlan1000"]))
-        assert check_res == tested_data["exp_res"]
+def test_db_event_executor_check_vlan_update(tested_data):
+    subscribe_vlan_table = MockSubscribeTable(tested_data["table"])
+    db_event_executor = _DbEventExecutor()
+    check_res = db_event_executor.check_vlan_update(set(["Vlan1000"]), subscribe_vlan_table)
+    assert check_res == tested_data["exp_res"]
+    assert not subscribe_vlan_table.hasData()
 
 
 @pytest.mark.parametrize("tested_data", get_tested_data("test_vlan_intf_update"))
-def test_dhcp_db_monitor_check_vlan_intf_update(mock_swsscommon_dbconnector_init, tested_data):
-    with patch.object(DhcpDbMonitor, "subscribe_vlan_intf_table", return_value=MockSubscribeTable(tested_data["table"]),
-                      new_callable=PropertyMock):
-        db_connector = DhcpDbConnector()
-        dhcp_relayd_db_monitor = DhcpDbMonitor(db_connector)
-        check_res = dhcp_relayd_db_monitor._check_vlan_intf_update(set(["Vlan1000"]))
-        assert check_res == tested_data["exp_res"]
-
-
-@pytest.mark.parametrize("tested_data", [get_tested_data("test_vlan_intf_update"),
-                                         get_tested_data("test_pop_db_update_empty")])
-def test_dhcp_db_monitor_pop_db_update_event(mock_swsscommon_dbconnector_init, tested_data):
-    db_connector = DhcpDbConnector()
-    dhcp_relayd_db_monitor = DhcpDbMonitor(db_connector)
-    mock_sub_table = MockSubscribeTable(tested_data[0]["table"])
-    dhcp_relayd_db_monitor._pop_db_update_event(mock_sub_table)
-    assert not mock_sub_table.hasData()
+def test_db_event_executor_check_vlan_intf_update(tested_data):
+    subscribe_vlan_intf_table = MockSubscribeTable(tested_data["table"])
+    db_event_executor = _DbEventExecutor()
+    check_res = db_event_executor.check_vlan_intf_update(set(["Vlan1000"]), subscribe_vlan_intf_table)
+    assert check_res == tested_data["exp_res"]
+    assert not subscribe_vlan_intf_table.hasData()
 
 
 @pytest.mark.parametrize("tested_class", ["dhcprelayd", "dhcpservd"])
@@ -115,25 +91,25 @@ def test_dhcp_relayd_servd_monitor_subscribe_table(mock_swsscommon_dbconnector_i
         mock_add_select.assert_has_calls(calls_add_select, any_order=True)
 
 
-@pytest.mark.parametrize("check_param", [{}, {"enabled_dhcp_interfaces": "dummy"}])
-def test_dhcp_relayd_monitor_do_check(mock_swsscommon_dbconnector_init, check_param):
+@pytest.mark.parametrize("select_result", [swsscommon.Select.TIMEOUT, swsscommon.Select.OBJECT])
+def test_dhcp_relayd_monitor_check_db_update(mock_swsscommon_dbconnector_init, select_result):
     with patch.object(DhcpRelaydDbMonitor, "_check_dhcp_server_update") as mock_check_dhcp_server_update, \
-         patch.object(DhcpRelaydDbMonitor, "_check_vlan_update") as mock_check_vlan_update, \
-         patch.object(DhcpRelaydDbMonitor, "_pop_db_update_event") as mock__pop_db_update_event, \
-         patch.object(DhcpRelaydDbMonitor, "_check_vlan_intf_update") as mock_check_vlan_intf_update:
+         patch.object(_DbEventExecutor, "check_vlan_update") as mock_check_vlan_update, \
+         patch.object(_DbEventExecutor, "pop_db_update_event") as mock_pop_db_update_event, \
+         patch.object(_DbEventExecutor, "check_vlan_intf_update") as mock_check_vlan_intf_update, \
+         patch.object(swsscommon.Select, "select", return_value=(select_result, None)):
         db_connector = DhcpDbConnector()
         dhcp_relayd_db_monitor = DhcpRelaydDbMonitor(db_connector)
-        dhcp_relayd_db_monitor._do_check(check_param)
-        if "enabled_dhcp_interfaces" in check_param:
+        dhcp_relayd_db_monitor.check_db_update("dummy")
+        if select_result == swsscommon.Select.OBJECT:
             mock_check_dhcp_server_update.assert_called_once_with("dummy")
-            mock_check_vlan_update.assert_called_once_with("dummy")
-            mock_check_vlan_intf_update.assert_called_once_with("dummy")
-            mock__pop_db_update_event.assert_not_called()
+            mock_check_vlan_update.assert_called_once_with("dummy", ANY)
+            mock_check_vlan_intf_update.assert_called_once_with("dummy", ANY)
+            mock_pop_db_update_event.assert_not_called()
         else:
             mock_check_dhcp_server_update.assert_not_called()
             mock_check_vlan_update.assert_not_called()
             mock_check_vlan_intf_update.assert_not_called()
-            mock__pop_db_update_event.assert_has_calls([call(None) for _ in range(3)])
 
 
 @pytest.mark.parametrize("tested_data", get_tested_data("test_dhcp_server_update"))
@@ -152,37 +128,34 @@ def test_dhcp_relayd_servd_monitor_check_dhcp_server_update(mock_swsscommon_dbco
         assert check_res == exp_res
 
 
-@pytest.mark.parametrize("check_param", DHCP_SERVD_CHECK_PARAM)
-def test_dhcp_servd_monitor_do_check(mock_swsscommon_dbconnector_init, check_param):
+@pytest.mark.parametrize("select_result", [swsscommon.Select.TIMEOUT, swsscommon.Select.OBJECT])
+def test_dhcp_servd_monitor_check_db_update(mock_swsscommon_dbconnector_init, select_result):
     with patch.object(DhcpServdDbMonitor, "_check_dhcp_server_update") as mock_check_dhcp_server_update, \
-         patch.object(DhcpServdDbMonitor, "_check_vlan_update") as mock_check_vlan_update, \
-         patch.object(DhcpServdDbMonitor, "_check_vlan_intf_update") as mock_check_vlan_intf_update, \
          patch.object(DhcpServdDbMonitor, "_check_dhcp_server_port_update") as mock_check_dhcp_server_port_update, \
          patch.object(DhcpServdDbMonitor, "_check_dhcp_server_range_update") as mock_check_dhcp_server_range_update, \
          patch.object(DhcpServdDbMonitor, "_check_dhcp_server_option_update") as mock_check_dhcp_server_option_update, \
-         patch.object(DhcpServdDbMonitor, "_pop_db_update_event") as mock_pop_db_update_event, \
-         patch.object(DhcpServdDbMonitor, "_check_vlan_member_update") as mock_check_vlan_member_update:
+         patch.object(DhcpServdDbMonitor, "_check_vlan_member_update") as mock_check_vlan_member_update, \
+         patch.object(_DbEventExecutor, "check_vlan_update") as mock_check_vlan_update, \
+         patch.object(_DbEventExecutor, "check_vlan_intf_update") as mock_check_vlan_intf_update, \
+         patch.object(_DbEventExecutor, "pop_db_update_event"), \
+         patch.object(swsscommon.Select, "select", return_value=(select_result, None)):
         db_connector = DhcpDbConnector()
         db_monitor = DhcpServdDbMonitor(db_connector)
-        db_monitor._do_check(check_param)
-        if "enabled_dhcp_interfaces" in check_param and "used_range" in check_param and "used_options" in check_param:
+        db_monitor.check_db_update("dummy1", "dummy2", "dummy3")
+        if select_result == swsscommon.Select.OBJECT:
             mock_check_dhcp_server_update.assert_called_once_with("dummy1")
-            mock_check_vlan_update.assert_called_once_with("dummy1")
-            mock_check_vlan_intf_update.assert_called_once_with("dummy1")
             mock_check_dhcp_server_port_update.assert_called_once_with("dummy1")
             mock_check_dhcp_server_range_update.assert_called_once_with("dummy2")
             mock_check_vlan_member_update.assert_called_once_with("dummy1")
-            mock_check_dhcp_server_option_update.assert_called_once_with("dummy3")
-            mock_pop_db_update_event.assert_not_called()
+            mock_check_dhcp_server_option_update.assert_called_once_with("dummy3"),
+            mock_check_vlan_update.assert_called_once_with("dummy1", ANY),
+            mock_check_vlan_intf_update.assert_called_once_with("dummy1", ANY)
         else:
             mock_check_dhcp_server_update.assert_not_called()
-            mock_check_vlan_update.assert_not_called()
-            mock_check_vlan_intf_update.assert_not_called()
             mock_check_dhcp_server_port_update.assert_not_called()
             mock_check_dhcp_server_range_update.assert_not_called()
             mock_check_vlan_member_update.assert_not_called()
             mock_check_dhcp_server_option_update.assert_not_called()
-            mock_pop_db_update_event.assert_has_calls([call(None) for _ in range(7)])
 
 
 @pytest.mark.parametrize("tested_data", get_tested_data("test_port_update"))
@@ -192,6 +165,16 @@ def test_dhcp_servd_monitor_check_dhcp_server_port_update(mock_swsscommon_dbconn
         db_connector = DhcpDbConnector()
         dhcp_relayd_db_monitor = DhcpServdDbMonitor(db_connector)
         check_res = dhcp_relayd_db_monitor._check_dhcp_server_port_update(set(["Vlan1000"]))
+        assert check_res == tested_data["exp_res"]
+
+
+@pytest.mark.parametrize("tested_data", get_tested_data("test_option_update"))
+def test_dhcp_servd_monitor_check_dhcp_server_option_update(mock_swsscommon_dbconnector_init, tested_data):
+    with patch.object(DhcpServdDbMonitor, "subscribe_dhcp_server_options_table",
+                      return_value=MockSubscribeTable(tested_data["table"]), new_callable=PropertyMock):
+        db_connector = DhcpDbConnector()
+        dhcp_relayd_db_monitor = DhcpServdDbMonitor(db_connector)
+        check_res = dhcp_relayd_db_monitor._check_dhcp_server_option_update(set(["option223"]))
         assert check_res == tested_data["exp_res"]
 
 

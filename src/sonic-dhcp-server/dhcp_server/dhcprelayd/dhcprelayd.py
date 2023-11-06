@@ -74,10 +74,7 @@ class DhcpRelayd(object):
         Wait function, check db change here
         """
         while True:
-            res = (self.dhcp_relayd_monitor.check_db_update({"enabled_dhcp_interfaces": self.enabled_dhcp_interfaces}))
-            # Select timeout or no successful
-            if isinstance(res, bool):
-                continue
+            res = (self.dhcp_relayd_monitor.check_db_update(self.enabled_dhcp_interfaces))
             (dhcp_server_res, vlan_res, vlan_intf_res) = res
             # vlan ip change require kill old dhcp_relay related processes
             if vlan_intf_res:

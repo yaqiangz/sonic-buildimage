@@ -51,6 +51,24 @@
             "exp_res": true
         }
     ],
+    "test_option_update": [
+        {
+            "table": [
+                ["option223", "SET", [["type", "string"]]]
+            ],
+            "exp_res": true
+        },
+        {
+            "table": [],
+            "exp_res": false
+        },
+        {
+            "table": [
+                ["option222", "SET", [["type", "string"]]]
+            ],
+            "exp_res": false
+        }
+    ],
     "test_vlan_intf_update": [
         {
             "table": [

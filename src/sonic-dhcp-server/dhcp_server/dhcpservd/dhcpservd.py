@@ -86,9 +86,8 @@ class DhcpServd(object):
 
     def wait(self):
         while True:
-            res = self.dhcp_servd_monitor.check_db_update({"enabled_dhcp_interfaces": self.enabled_dhcp_interfaces,
-                                                           "used_range": self.used_range,
-                                                           "used_options": self.used_options})
+            res = self.dhcp_servd_monitor.check_db_update(self.enabled_dhcp_interfaces, self.used_range,
+                                                          self.used_options)
             if res:
                 self.dump_dhcp4_config()
 
