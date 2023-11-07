@@ -4,10 +4,10 @@ import signal
 import sys
 import time
 from common_utils import MockProc
+from dhcp_server.common.dhcp_db_monitor import DhcpServdDbMonitor
 from dhcp_server.common.utils import DhcpDbConnector
 from dhcp_server.dhcpservd.dhcp_cfggen import DhcpServCfgGenerator
 from dhcp_server.dhcpservd.dhcpservd import DhcpServd
-from dhcp_server.common.dhcp_db_monitor import DhcpServdDbMonitor
 from swsscommon import swsscommon
 from unittest.mock import patch, call, MagicMock
 
@@ -15,7 +15,7 @@ AF_INET = 2
 AF_INET6 = 10
 
 
-def test_dump_dhcp4_config(mock_swsscommon_dbconnector_init):
+def test_dump_dhcp4_config(mock_swsscommon_dbconnector_init, mock_subscribe_table):
     with patch("dhcp_server.dhcpservd.dhcp_cfggen.DhcpServCfgGenerator.generate",
                return_value=("dummy_config", set(), set(), set())) as mock_generate, \
          patch("dhcp_server.dhcpservd.dhcpservd.DhcpServd._notify_kea_dhcp4_proc",
@@ -24,7 +24,9 @@ def test_dump_dhcp4_config(mock_swsscommon_dbconnector_init):
         dhcp_cfg_generator = DhcpServCfgGenerator(dhcp_db_connector,
                                                   port_map_path="tests/test_data/port-name-alias-map.txt",
                                                   kea_conf_template_path="tests/test_data/kea-dhcp4.conf.j2")
-        dhcpservd = DhcpServd(dhcp_cfg_generator, dhcp_db_connector, kea_dhcp4_config_path="/tmp/kea-dhcp4.conf")
+        db_monitor = DhcpServdDbMonitor(dhcp_db_connector)
+        dhcpservd = DhcpServd(dhcp_cfg_generator, dhcp_db_connector, db_monitor,
+                              kea_dhcp4_config_path="/tmp/kea-dhcp4.conf")
         dhcpservd.dump_dhcp4_config()
         # Verfiy whether generate() func of dhcp_cfggen is called
         mock_generate.assert_called_once_with()
@@ -34,13 +36,14 @@ def test_dump_dhcp4_config(mock_swsscommon_dbconnector_init):
 
 @pytest.mark.parametrize("process_list", [["proc1", "proc2", "kea-dhcp4"], ["proc1", "proc2"]])
 def test_notify_kea_dhcp4_proc(process_list, mock_swsscommon_dbconnector_init, mock_get_render_template,
-                               mock_parse_port_map_alias):
+                               mock_parse_port_map_alias, mock_subscribe_table):
     proc_list = [MockProc(process_name) for process_name in process_list]
     with patch.object(psutil, "process_iter", return_value=proc_list), \
          patch.object(MockProc, "send_signal", MagicMock()) as mock_send_signal:
         dhcp_db_connector = DhcpDbConnector()
         dhcp_cfg_generator = DhcpServCfgGenerator(dhcp_db_connector)
-        dhcpservd = DhcpServd(dhcp_cfg_generator, dhcp_db_connector)
+        db_monitor = DhcpServdDbMonitor(dhcp_db_connector)
+        dhcpservd = DhcpServd(dhcp_cfg_generator, dhcp_db_connector, db_monitor)
         dhcpservd._notify_kea_dhcp4_proc()
         if "kea-dhcp4" in process_list:
             mock_send_signal.assert_has_calls([
@@ -52,7 +55,7 @@ def test_notify_kea_dhcp4_proc(process_list, mock_swsscommon_dbconnector_init, m
 
 @pytest.mark.parametrize("mock_intf", [True, False])
 def test_update_dhcp_server_ip(mock_swsscommon_dbconnector_init, mock_parse_port_map_alias, mock_get_render_template,
-                               mock_intf):
+                               mock_intf, mock_subscribe_table):
     mock_interface = {} if not mock_intf else {
         "eth0": [
             MockIntf(AF_INET6, "fd00::2"),
@@ -65,7 +68,8 @@ def test_update_dhcp_server_ip(mock_swsscommon_dbconnector_init, mock_parse_port
          patch.object(sys, "exit") as mock_exit:
         dhcp_db_connector = DhcpDbConnector()
         dhcp_cfg_generator = DhcpServCfgGenerator(dhcp_db_connector)
-        dhcpservd = DhcpServd(dhcp_cfg_generator, dhcp_db_connector)
+        db_monitor = DhcpServdDbMonitor(dhcp_db_connector)
+        dhcpservd = DhcpServd(dhcp_cfg_generator, dhcp_db_connector, db_monitor)
         dhcpservd._update_dhcp_server_ip()
         if mock_intf:
             mock_hset.assert_has_calls([
@@ -77,17 +81,17 @@ def test_update_dhcp_server_ip(mock_swsscommon_dbconnector_init, mock_parse_port
             mock_sleep.assert_has_calls([call(5) for _ in range(10)])
 
 
-def test_start(mock_swsscommon_dbconnector_init, mock_parse_port_map_alias, mock_get_render_template):
+def test_start(mock_swsscommon_dbconnector_init, mock_parse_port_map_alias, mock_get_render_template,
+               mock_subscribe_table):
     with patch.object(DhcpServd, "dump_dhcp4_config") as mock_dump, \
-         patch.object(DhcpServd, "_update_dhcp_server_ip") as mock_update_dhcp_server_ip, \
-         patch.object(DhcpServdDbMonitor, "subscribe_table", return_value=None) as mock_subscribe:
+         patch.object(DhcpServd, "_update_dhcp_server_ip") as mock_update_dhcp_server_ip:
         dhcp_db_connector = DhcpDbConnector()
         dhcp_cfg_generator = DhcpServCfgGenerator(dhcp_db_connector)
-        dhcpservd = DhcpServd(dhcp_cfg_generator, dhcp_db_connector)
+        db_monitor = DhcpServdDbMonitor(dhcp_db_connector)
+        dhcpservd = DhcpServd(dhcp_cfg_generator, dhcp_db_connector, db_monitor)
         dhcpservd.start()
         mock_dump.assert_called_once_with()
         mock_update_dhcp_server_ip.assert_called_once_with()
-        mock_subscribe.assert_called_once_with()
 
 
 class MockIntf(object):

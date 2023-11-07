@@ -4,11 +4,14 @@ import os
 import sys
 from unittest.mock import patch, PropertyMock
 from dhcp_server.dhcpservd.dhcp_cfggen import DhcpServCfgGenerator
+from common_utils import mock_subscriber_state_table
+
 
 test_path = os.path.dirname(os.path.abspath(__file__))
 modules_path = os.path.dirname(test_path)
 sys.path.insert(0, test_path)
 sys.path.insert(0, modules_path)
+
 
 @pytest.fixture(scope="function")
 def mock_swsscommon_dbconnector_init():
@@ -20,6 +23,14 @@ def mock_swsscommon_dbconnector_init():
 def mock_swsscommon_table_init():
     with patch.object(utils.swsscommon.Table, "__init__", return_value=None) as mock_table_init:
         yield mock_table_init
+
+
+@pytest.fixture(scope="function")
+def mock_subscribe_table():
+    with patch.object(utils.swsscommon, "SubscriberStateTable", side_effect=mock_subscriber_state_table) \
+        as mock_subscribe, \
+         patch.object(utils.swsscommon.Select, "addSelectable", return_value=None) as mock_add_select:
+        yield mock_subscribe, mock_add_select
 
 
 @pytest.fixture(scope="function")
@@ -39,4 +50,3 @@ def mock_parse_port_map_alias(scope="function"):
                       new_callable=PropertyMock), \
          patch.object(DhcpServCfgGenerator, "lease_path", return_value="/tmp/kea-lease.csv", new_callable=PropertyMock):
         yield mock_map
-

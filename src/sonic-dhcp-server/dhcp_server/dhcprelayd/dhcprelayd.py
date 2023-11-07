@@ -14,10 +14,8 @@ REDIS_SOCK_PATH = "/var/run/redis/redis.sock"
 DHCP_SERVER_IPV4_SERVER_IP = "DHCP_SERVER_IPV4_SERVER_IP"
 DHCP_SERVER_IPV4 = "DHCP_SERVER_IPV4"
 VLAN = "VLAN"
-VLAN_INTERFACE = "VLAN_INTERFACE"
 DEFAULT_SELECT_TIMEOUT = 5000  # millisecond
 DHCP_SERVER_INTERFACE = "eth0"
-DEFAULT_REFRESH_INTERVAL = 2
 
 KILLED_OLD = 1
 NOT_KILLED = 2
@@ -28,7 +26,7 @@ class DhcpRelayd(object):
     sel = None
     enabled_dhcp_interfaces = set()
 
-    def __init__(self, db_connector, select_timeout=DEFAULT_SELECT_TIMEOUT):
+    def __init__(self, db_connector, db_monitor):
         """
         Args:
             db_connector: db connector obj
@@ -36,18 +34,19 @@ class DhcpRelayd(object):
         """
         self.db_connector = db_connector
         self.last_refresh_time = None
-        self.dhcp_relayd_monitor = DhcpRelaydDbMonitor(db_connector, select_timeout)
+        self.dhcp_relayd_monitor = db_monitor
 
     def start(self):
         """
         Start function
         """
         self.refresh_dhcrelay()
-        self.dhcp_relayd_monitor.subscribe_table()
 
     def refresh_dhcrelay(self, force_kill=False):
         """
         To refresh dhcrelay/dhcpmon process (start or restart)
+        Args:
+            force_kill: if True, force kill old processes
         """
         syslog.syslog(syslog.LOG_INFO, "Start to refresh dhcrelay related processes")
         dhcp_server_ip = self._get_dhcp_server_ip()
@@ -74,7 +73,7 @@ class DhcpRelayd(object):
         Wait function, check db change here
         """
         while True:
-            res = (self.dhcp_relayd_monitor.check_db_update(self.enabled_dhcp_interfaces))
+            res = (self.dhcp_relayd_monitor.check_db_update({"enabled_dhcp_interfaces": self.enabled_dhcp_interfaces}))
             (dhcp_server_res, vlan_res, vlan_intf_res) = res
             # vlan ip change require kill old dhcp_relay related processes
             if vlan_intf_res:
@@ -179,7 +178,8 @@ class DhcpRelayd(object):
 
 def main():
     dhcp_db_connector = DhcpDbConnector(redis_sock=REDIS_SOCK_PATH)
-    dhcprelayd = DhcpRelayd(dhcp_db_connector)
+    db_monitor = DhcpRelaydDbMonitor(dhcp_db_connector, DEFAULT_SELECT_TIMEOUT)
+    dhcprelayd = DhcpRelayd(dhcp_db_connector, db_monitor)
     dhcprelayd.start()
     dhcprelayd.wait()
 

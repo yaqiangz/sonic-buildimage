@@ -3,7 +3,7 @@ import json
 import psutil
 
 MOCK_CONFIG_DB_PATH = "tests/test_data/mock_config_db.json"
-MOCK_STATE_DB_PATH = "tests/test_data/mock_state_db.json"
+TEST_DATA_PATH = "tests/test_data/dhcp_db_monitor_test_data.json"
 
 
 class MockConfigDb(object):
@@ -84,3 +84,21 @@ class MockPopen(object):
 
 def mock_exit_func(status):
     raise SystemExit(status)
+
+
+def mock_subscriber_state_table(db, table_name):
+    return table_name
+
+
+def get_subscribe_table_tested_data(test_name):
+    test_obj = {}
+    with open(TEST_DATA_PATH, "r") as file:
+        test_obj = json.loads(file.read())
+    tested_data = test_obj[test_name]
+    for data in tested_data:
+        for i in range(len(data["table"])):
+            for j in range(len(data["table"][i][2])):
+                data["table"][i][2][j] = tuple(data["table"][i][2][j])
+            data["table"][i][2] = tuple(data["table"][i][2])
+            data["table"][i] = tuple(data["table"][i])
+    return tested_data

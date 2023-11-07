@@ -1,6 +1,5 @@
 import ipaddress
 import string
-import syslog
 from swsscommon import swsscommon
 
 DEFAULT_REDIS_HOST = "127.0.0.1"

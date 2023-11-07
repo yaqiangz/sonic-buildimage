@@ -10,6 +10,13 @@ from unittest.mock import patch
 
 expected_dhcp_config = {
     "Dhcp4": {
+        "option-def": [
+            {
+                "name": "option223",
+                "code": 223,
+                "type": "string"
+            }
+        ],
         "hooks-libraries": [
             {
                 "library": "/usr/local/lib/kea/hooks/libdhcp_run_script.so",
@@ -352,16 +359,27 @@ def test_construct_obj_for_template(mock_swsscommon_dbconnector_init, mock_parse
 
 
 @pytest.mark.parametrize("with_port_config", [True, False])
-def test_render_config(mock_swsscommon_dbconnector_init, mock_parse_port_map_alias, with_port_config):
+@pytest.mark.parametrize("with_option_config", [True, False])
+def test_render_config(mock_swsscommon_dbconnector_init, mock_parse_port_map_alias, with_port_config,
+                       with_option_config):
     dhcp_db_connector = DhcpDbConnector()
     dhcp_cfg_generator = DhcpServCfgGenerator(dhcp_db_connector,
                                               kea_conf_template_path="tests/test_data/kea-dhcp4.conf.j2")
     render_obj = copy.deepcopy(expected_render_obj)
+    expected_config = copy.deepcopy(expected_dhcp_config)
     if not with_port_config:
         render_obj["client_classes"] = []
         render_obj["subnets"] = []
+    elif not with_option_config:
+        render_obj["subnets"][0]["customized_options"] = {}
     config = dhcp_cfg_generator._render_config(render_obj)
-    assert json.loads(config) == expected_dhcp_config if with_port_config else expected_dhcp_config_without_port_config
+    if with_option_config:
+        expected_config["Dhcp4"]["subnet4"][0]["option-data"].insert(0, {
+                        "name": "option223",
+                        "data": "dummy_value",
+                        "always-send": True
+                    })
+    assert json.loads(config) == expected_config if with_port_config else expected_config
 
 
 @pytest.mark.parametrize("tested_options_data", tested_options_data)

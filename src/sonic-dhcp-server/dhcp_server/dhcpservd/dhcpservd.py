@@ -8,19 +8,11 @@ from .dhcp_cfggen import DhcpServCfgGenerator
 from .dhcp_lease import LeaseManager
 from dhcp_server.common.utils import DhcpDbConnector
 from dhcp_server.common.dhcp_db_monitor import DhcpServdDbMonitor
-from swsscommon import swsscommon
 
 KEA_DHCP4_CONFIG = "/etc/kea/kea-dhcp4.conf"
 KEA_DHCP4_PROC_NAME = "kea-dhcp4"
 KEA_LEASE_FILE_PATH = "/tmp/kea-lease.csv"
 REDIS_SOCK_PATH = "/var/run/redis/redis.sock"
-DHCP_SERVER_IPV4 = "DHCP_SERVER_IPV4"
-DHCP_SERVER_IPV4_PORT = "DHCP_SERVER_IPV4_PORT"
-DHCP_SERVER_IPV4_RANGE = "DHCP_SERVER_IPV4_RANGE"
-VLAN = "VLAN"
-VLAN_MEMBER = "VLAN_MEMBER"
-VLAN_INTERFACE = "VLAN_INTERFACE"
-DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS = "DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS"
 DHCP_SERVER_IPV4_SERVER_IP = "DHCP_SERVER_IPV4_SERVER_IP"
 DHCP_SERVER_INTERFACE = "eth0"
 AF_INET = 2
@@ -30,12 +22,11 @@ DEFAULT_SELECT_TIMEOUT = 5000  # millisecond
 class DhcpServd(object):
     sel = None
 
-    def __init__(self, dhcp_cfg_generator, db_connector, kea_dhcp4_config_path=KEA_DHCP4_CONFIG,
-                 select_timeout=DEFAULT_SELECT_TIMEOUT):
+    def __init__(self, dhcp_cfg_generator, db_connector, dhcp_servd_monitor, kea_dhcp4_config_path=KEA_DHCP4_CONFIG):
         self.dhcp_cfg_generator = dhcp_cfg_generator
         self.db_connector = db_connector
         self.kea_dhcp4_config_path = kea_dhcp4_config_path
-        self.dhcp_servd_monitor = DhcpServdDbMonitor(db_connector, select_timeout)
+        self.dhcp_servd_monitor = dhcp_servd_monitor
 
     def _notify_kea_dhcp4_proc(self):
         """
@@ -82,12 +73,15 @@ class DhcpServd(object):
         self._update_dhcp_server_ip()
         lease_manager = LeaseManager(self.db_connector, KEA_LEASE_FILE_PATH)
         lease_manager.start()
-        self.dhcp_servd_monitor.subscribe_table()
 
     def wait(self):
         while True:
-            res = self.dhcp_servd_monitor.check_db_update(self.enabled_dhcp_interfaces, self.used_range,
-                                                          self.used_options)
+            db_snapshot = {
+                "enabled_dhcp_interfaces": self.enabled_dhcp_interfaces,
+                "used_range": self.used_range,
+                "used_options": self.used_options
+            }
+            res = self.dhcp_servd_monitor.check_db_update(db_snapshot)
             if res:
                 self.dump_dhcp4_config()
 
@@ -95,7 +89,8 @@ class DhcpServd(object):
 def main():
     dhcp_db_connector = DhcpDbConnector(redis_sock=REDIS_SOCK_PATH)
     dhcp_cfg_generator = DhcpServCfgGenerator(dhcp_db_connector)
-    dhcpservd = DhcpServd(dhcp_cfg_generator, dhcp_db_connector)
+    dhcp_db_monitor = DhcpServdDbMonitor(dhcp_db_connector, DEFAULT_SELECT_TIMEOUT)
+    dhcpservd = DhcpServd(dhcp_cfg_generator, dhcp_db_connector, dhcp_db_monitor)
     dhcpservd.start()
     dhcpservd.wait()
 

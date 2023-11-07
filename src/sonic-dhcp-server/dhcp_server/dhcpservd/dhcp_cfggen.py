@@ -14,12 +14,10 @@ DHCP_SERVER_IPV4 = "DHCP_SERVER_IPV4"
 DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS = "DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS"
 DHCP_SERVER_IPV4_RANGE = "DHCP_SERVER_IPV4_RANGE"
 DHCP_SERVER_IPV4_PORT = "DHCP_SERVER_IPV4_PORT"
-DHCP_SERVER_IPV4_LEASE = "DHCP_SERVER_IPV4_LEASE"
 LEASE_UPDATE_SCRIPT_PATH = "/etc/kea/lease_update.sh"
+DEFAULT_LEASE_TIME = 900
 DEFAULT_LEASE_PATH = "/tmp/kea-lease.csv"
 KEA_DHCP4_CONF_TEMPLATE_PATH = "/usr/share/sonic/templates/kea-dhcp4.conf.j2"
-# Default lease time of DHCP
-DEFAULT_LEASE_TIME = 900
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 DHCP_OPTION_FILE = f"{SCRIPT_DIR}/dhcp_option.csv"
 SUPPORT_DHCP_OPTION_TYPE = ["binary", "boolean", "ipv4-address", "string", "uint8", "uint16", "uint32"]
@@ -173,7 +171,7 @@ class DhcpServCfgGenerator(object):
                         "pools": pools,
                         "gateway": dhcp_config["gateway"],
                         "server_id": dhcp_interface_ip.split("/")[0],
-                        "lease_time": dhcp_config["lease_time"],
+                        "lease_time": dhcp_config["lease_time"] if "lease_time" in dhcp_config else DEFAULT_LEASE_TIME,
                         "customized_options": curr_options
                     }
                     used_options = used_options | set(subnet_obj["customized_options"])

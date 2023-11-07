@@ -1,4 +1,11 @@
 {
+    "test_table_clear": [
+        {
+            "table": [
+                ["range1", "SET", [["ranges", "192.168.0.1,192.168.0.5"]]]
+            ]
+        }
+    ],
     "test_range_update": [
         {
             "table": [
@@ -158,7 +165,7 @@
             "table": [
                 ["Vlan1000", "SET", [["customized_options", "option1"], ["state", "enabled"]]]
             ],
-            "exp_res": {"dhcprelayd": false, "dhcpservd": true}
+            "exp_res": {"enablement": false, "cfg_change": true}
         },
         {
             "table": [
@@ -234,11 +241,6 @@
                 ["Vlan2000|Ethernet0", "DEL", []]
             ],
             "exp_res": false
-        }
-    ],
-    "test_pop_db_update_empty": [
-        {
-            "table": []
         }
     ]
 }
