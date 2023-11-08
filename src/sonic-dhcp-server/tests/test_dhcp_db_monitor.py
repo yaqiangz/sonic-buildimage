@@ -1,17 +1,13 @@
 import pytest
-from common_utils import MockSubscribeTable, get_subscribe_table_tested_data
+from common_utils import MockSubscribeTable, MockDbEventChecker, get_subscribe_table_tested_data, \
+    PORT_MODE_SUBSCRIBE_TABLE
 from dhcp_server.common.dhcp_db_monitor import DhcpRelaydDbMonitor, DhcpServdDbMonitor, DbEventChecker, \
-                                               DhcpServerTableIntfEnablementEventChecker, \
-                                               DhcpServerTableCfgChangeEventChecker, \
-                                               DhcpPortTableEventChecker, \
-                                               DhcpRangeTableEventChecker, \
-                                               DhcpOptionTableEventChecker, \
-                                               VlanTableEventChecker, \
-                                               VlanMemberTableEventChecker, \
-                                               VlanIntfTableEventChecker
+    DhcpServerTableIntfEnablementEventChecker, DhcpServerTableCfgChangeEventChecker, \
+    DhcpPortTableEventChecker, DhcpRangeTableEventChecker, DhcpOptionTableEventChecker, \
+    VlanTableEventChecker, VlanMemberTableEventChecker, VlanIntfTableEventChecker
 from dhcp_server.common.utils import DhcpDbConnector
 from swsscommon import swsscommon
-from unittest.mock import patch, ANY, PropertyMock
+from unittest.mock import patch, ANY, PropertyMock, call
 
 
 @pytest.mark.parametrize("select_result", [swsscommon.Select.TIMEOUT, swsscommon.Select.OBJECT])
@@ -47,7 +43,7 @@ def test_dhcp_servd_monitor_check_db_update(mock_swsscommon_dbconnector_init, se
          patch.object(VlanIntfTableEventChecker, "check_update_event") as mock_check_vlan_intf_update, \
          patch.object(swsscommon.Select, "select", return_value=(select_result, None)):
         db_connector = DhcpDbConnector()
-        db_monitor = DhcpServdDbMonitor(db_connector)
+        db_monitor = DhcpServdDbMonitor(db_connector, PORT_MODE_SUBSCRIBE_TABLE)
         tested_db_snapshot = {"enabled_dhcp_interfaces": "dummy1", "used_range": "dummy2",
                               "used_options": "dummy3"}
         db_monitor.check_db_update(tested_db_snapshot)
@@ -67,6 +63,42 @@ def test_dhcp_servd_monitor_check_db_update(mock_swsscommon_dbconnector_init, se
             mock_check_dhcp_server_option_update.assert_not_called()
             mock_check_vlan_update.assert_not_called()
             mock_check_vlan_intf_update.assert_not_called()
+
+
+@pytest.mark.parametrize("table_name", ["table1", "table2"])
+def test_dhcp_servd_monitor_unsubscribe_table(mock_swsscommon_dbconnector_init, mock_subscribe_table, table_name):
+    tested_dict = {"table1": MockDbEventChecker()}
+    with patch.object(DhcpServdDbMonitor, "checker_dict", return_value=tested_dict, new_callable=PropertyMock), \
+         patch.object(DbEventChecker, "remove_subscribe") as mock_remove_subscribe:
+        db_connector = DhcpDbConnector()
+        db_monitor = DhcpServdDbMonitor(db_connector, PORT_MODE_SUBSCRIBE_TABLE)
+        db_monitor._unsubscribe_table(table_name)
+        if table_name in tested_dict:
+            mock_remove_subscribe.assert_called_once_with()
+            assert table_name not in db_monitor.checker_dict
+        else:
+            mock_remove_subscribe.assert_not_called()
+            assert db_monitor.checker_dict == tested_dict
+
+
+@pytest.mark.parametrize("tables", [set(PORT_MODE_SUBSCRIBE_TABLE), set(["dummy"])])
+def test_dhcp_servd_monitor_unsubscribe_tables(mock_swsscommon_dbconnector_init, mock_subscribe_table, tables):
+    with patch.object(DhcpServdDbMonitor, "_unsubscribe_table") as mock_unsubscribe_table:
+        db_connector = DhcpDbConnector()
+        db_monitor = DhcpServdDbMonitor(db_connector, PORT_MODE_SUBSCRIBE_TABLE)
+        db_monitor.unsubscribe_tables(tables)
+        if tables == set(PORT_MODE_SUBSCRIBE_TABLE):
+            mock_unsubscribe_table.assert_has_calls([
+                call("dhcp_server"),
+                call("dhcp_port"),
+                call("dhcp_range"),
+                call("dhcp_option"),
+                call("vlan"),
+                call("vlan_member"),
+                call("vlan_intf"),
+            ])
+        else:
+            mock_unsubscribe_table.assert_not_called()
 
 
 def test_db_event_checker_init(mock_swsscommon_dbconnector_init, mock_subscribe_table):
@@ -109,6 +141,15 @@ def test_db_event_checker_check_update_event(mock_swsscommon_dbconnector_init, m
         db_event_checker.check_update_event()
     except NotImplementedError:
         pass
+
+
+def test_db_event_checker_remove_subscribe(mock_swsscommon_dbconnector_init, mock_subscribe_table):
+    with patch.object(swsscommon.Select, "removeSelectable") as mock_remove:
+        sel = swsscommon.Select()
+        db_connector = DhcpDbConnector()
+        db_event_checker = DbEventChecker(sel, db_connector)
+        db_event_checker.remove_subscribe()
+        mock_remove.assert_called_once_with("")
 
 
 @pytest.mark.parametrize("tested_db_snapshot", [{"enabled_dhcp_interfaces": "Vlan1000"}, {}])

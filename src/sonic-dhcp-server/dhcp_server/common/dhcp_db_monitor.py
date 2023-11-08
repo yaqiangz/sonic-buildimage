@@ -35,6 +35,12 @@ class DbEventChecker(object):
         self.subscribe_table = swsscommon.SubscriberStateTable(db, self.table_name)
         self.sel.addSelectable(self.subscribe_table)
 
+    def remove_subscribe(self):
+        """
+        Unsubscribe table
+        """
+        self.sel.removeSelectable(self.subscribe_table)
+
     def _clear_event(self):
         """
         Clear update event of subscirbe table
@@ -309,18 +315,55 @@ class DhcpRelaydDbMonitor(object):
 
 
 class DhcpServdDbMonitor(object):
-    def __init__(self, db_connector, select_timeout=DEFAULT_SELECT_TIMEOUT):
+    checker_dict = {}
+
+    def __init__(self, db_connector, subscribe_tables, select_timeout=DEFAULT_SELECT_TIMEOUT):
         self.db_connector = db_connector
         self.sel = swsscommon.Select()
         self.select_timeout = select_timeout
-        self.checker_dict = {}
-        self.checker_dict["dhcp_server"] = DhcpServerTableCfgChangeEventChecker(self.sel, db_connector)
-        self.checker_dict["dhcp_port"] = DhcpPortTableEventChecker(self.sel, db_connector)
-        self.checker_dict["dhcp_range"] = DhcpRangeTableEventChecker(self.sel, db_connector)
-        self.checker_dict["dhcp_option"] = DhcpOptionTableEventChecker(self.sel, db_connector)
-        self.checker_dict["vlan"] = VlanTableEventChecker(self.sel, db_connector)
-        self.checker_dict["vlan_member"] = VlanMemberTableEventChecker(self.sel, db_connector)
-        self.checker_dict["vlan_intf"] = VlanIntfTableEventChecker(self.sel, db_connector)
+        self.subscribe_tables(subscribe_tables)
+
+    def unsubscribe_tables(self, unsubscribe_tables):
+        """
+        Unsubscribe monitor table change of tables
+        Args:
+            unsubscribe_tables: set contains name of tables need to be unsubscribed
+        """
+        if DHCP_SERVER_IPV4 in unsubscribe_tables:
+            self._unsubscribe_table("dhcp_server")
+        if DHCP_SERVER_IPV4_PORT in unsubscribe_tables:
+            self._unsubscribe_table("dhcp_port")
+        if DHCP_SERVER_IPV4_RANGE in unsubscribe_tables:
+            self._unsubscribe_table("dhcp_range")
+        if DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS in unsubscribe_tables:
+            self._unsubscribe_table("dhcp_option")
+        if VLAN in unsubscribe_tables:
+            self._unsubscribe_table("vlan")
+        if VLAN_MEMBER in unsubscribe_tables:
+            self._unsubscribe_table("vlan_member")
+        if VLAN_INTERFACE in unsubscribe_tables:
+            self._unsubscribe_table("vlan_intf")
+
+    def subscribe_tables(self, subscribe_tables):
+        """
+        Subscribe monitor table change of tables
+        Args:
+            subscribe_tables: set contains name of tables need to be subscribed
+        """
+        if DHCP_SERVER_IPV4 in subscribe_tables and "dhcp_server" not in self.checker_dict:
+            self.checker_dict["dhcp_server"] = DhcpServerTableCfgChangeEventChecker(self.sel, self.db_connector)
+        if DHCP_SERVER_IPV4_PORT in subscribe_tables and "dhcp_port" not in self.checker_dict:
+            self.checker_dict["dhcp_port"] = DhcpPortTableEventChecker(self.sel, self.db_connector)
+        if DHCP_SERVER_IPV4_RANGE in subscribe_tables and "dhcp_range" not in self.checker_dict:
+            self.checker_dict["dhcp_range"] = DhcpRangeTableEventChecker(self.sel, self.db_connector)
+        if DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS in subscribe_tables and "dhcp_option" not in self.checker_dict:
+            self.checker_dict["dhcp_option"] = DhcpOptionTableEventChecker(self.sel, self.db_connector)
+        if VLAN in subscribe_tables and "vlan" not in self.checker_dict:
+            self.checker_dict["vlan"] = VlanTableEventChecker(self.sel, self.db_connector)
+        if VLAN_MEMBER in subscribe_tables and "vlan_member" not in self.checker_dict:
+            self.checker_dict["vlan_member"] = VlanMemberTableEventChecker(self.sel, self.db_connector)
+        if VLAN_INTERFACE in subscribe_tables and "vlan_intf" not in self.checker_dict:
+            self.checker_dict["vlan_intf"] = VlanIntfTableEventChecker(self.sel, self.db_connector)
 
     def check_db_update(self, db_snapshot):
         """
@@ -337,3 +380,14 @@ class DhcpServdDbMonitor(object):
         for checker in self.checker_dict.values():
             need_refresh |= checker.check_update_event(db_snapshot)
         return need_refresh
+
+    def _unsubscribe_table(self, table):
+        """
+        Unsubscribe table monitor
+        Args:
+            table: name of table need to be unsubscribed
+        """
+        if table not in self.checker_dict:
+            return
+        self.checker_dict[table].remove_subscribe()
+        del self.checker_dict[table]

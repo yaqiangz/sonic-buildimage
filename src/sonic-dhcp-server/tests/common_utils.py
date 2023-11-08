@@ -4,6 +4,15 @@ import psutil
 
 MOCK_CONFIG_DB_PATH = "tests/test_data/mock_config_db.json"
 TEST_DATA_PATH = "tests/test_data/dhcp_db_monitor_test_data.json"
+DHCP_SERVER_IPV4 = "DHCP_SERVER_IPV4"
+DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS = "DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS"
+DHCP_SERVER_IPV4_RANGE = "DHCP_SERVER_IPV4_RANGE"
+DHCP_SERVER_IPV4_PORT = "DHCP_SERVER_IPV4_PORT"
+VLAN = "VLAN"
+VLAN_INTERFACE = "VLAN_INTERFACE"
+VLAN_MEMBER = "VLAN_MEMBER"
+PORT_MODE_SUBSCRIBE_TABLE = [DHCP_SERVER_IPV4, DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS, DHCP_SERVER_IPV4_PORT,
+                             DHCP_SERVER_IPV4_RANGE, VLAN, VLAN_INTERFACE, VLAN_MEMBER]
 
 
 class MockConfigDb(object):
@@ -102,3 +111,16 @@ def get_subscribe_table_tested_data(test_name):
             data["table"][i][2] = tuple(data["table"][i][2])
             data["table"][i] = tuple(data["table"][i])
     return tested_data
+
+
+class MockDhcpServdMonitor(object):
+    def unsubscribe_tables(self, table_set):
+        pass
+
+    def subscribe_tables(self, table_set):
+        pass
+
+
+class MockDbEventChecker(object):
+    def remove_subscribe(self):
+        pass

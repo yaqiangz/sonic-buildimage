@@ -14,6 +14,11 @@ DHCP_SERVER_IPV4 = "DHCP_SERVER_IPV4"
 DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS = "DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS"
 DHCP_SERVER_IPV4_RANGE = "DHCP_SERVER_IPV4_RANGE"
 DHCP_SERVER_IPV4_PORT = "DHCP_SERVER_IPV4_PORT"
+VLAN = "VLAN"
+VLAN_INTERFACE = "VLAN_INTERFACE"
+VLAN_MEMBER = "VLAN_MEMBER"
+PORT_MODE_SUBSCRIBE_TABLE = [DHCP_SERVER_IPV4, DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS, DHCP_SERVER_IPV4_PORT,
+                             DHCP_SERVER_IPV4_RANGE, VLAN, VLAN_INTERFACE, VLAN_MEMBER]
 LEASE_UPDATE_SCRIPT_PATH = "/etc/kea/lease_update.sh"
 DEFAULT_LEASE_TIME = 900
 DEFAULT_LEASE_PATH = "/tmp/kea-lease.csv"
@@ -48,6 +53,7 @@ class DhcpServCfgGenerator(object):
             set of ranges used
             set of enabled dhcp interface
             set of used options
+            set of db table need to be monitored
         """
         # Generate from running config_db
         # Get host name
@@ -64,10 +70,9 @@ class DhcpServCfgGenerator(object):
         # Parse port table
         port_ips, used_ranges = self._parse_port(port_ipv4, vlan_interfaces, vlan_members, ranges)
         customized_options = self._parse_customized_options(customized_options_ipv4)
-        render_obj, enabled_dhcp_interfaces, used_options = self._construct_obj_for_template(dhcp_server_ipv4, port_ips,
-                                                                                             hostname,
-                                                                                             customized_options)
-        return self._render_config(render_obj), used_ranges, enabled_dhcp_interfaces, used_options
+        render_obj, enabled_dhcp_interfaces, used_options, subscribe_table = \
+            self._construct_obj_for_template(dhcp_server_ipv4, port_ips, hostname, customized_options)
+        return self._render_config(render_obj), used_ranges, enabled_dhcp_interfaces, used_options, subscribe_table
 
     def _parse_customized_options(self, customized_options_ipv4):
         customized_options = {}
@@ -132,6 +137,8 @@ class DhcpServCfgGenerator(object):
         client_classes = []
         enabled_dhcp_interfaces = set()
         used_options = set()
+        # Different mode would subscribe different table, always subscribe DHCP_SERVER_IPV4
+        subscribe_table = set([DHCP_SERVER_IPV4])
         for dhcp_interface_name, dhcp_config in dhcp_server_ipv4.items():
             if "state" not in dhcp_config or dhcp_config["state"] != "enabled":
                 continue
@@ -176,6 +183,7 @@ class DhcpServCfgGenerator(object):
                     }
                     used_options = used_options | set(subnet_obj["customized_options"])
                     subnets.append(subnet_obj)
+                subscribe_table |= set(PORT_MODE_SUBSCRIBE_TABLE)
         render_obj = {
             "subnets": subnets,
             "client_classes": client_classes,
@@ -183,7 +191,7 @@ class DhcpServCfgGenerator(object):
             "lease_path": self.lease_path,
             "customized_options": customized_options
         }
-        return render_obj, enabled_dhcp_interfaces, used_options
+        return render_obj, enabled_dhcp_interfaces, used_options, subscribe_table
 
     def _get_dhcp_ipv4_tables_from_db(self):
         """

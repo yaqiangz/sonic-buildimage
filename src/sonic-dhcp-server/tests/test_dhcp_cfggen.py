@@ -3,7 +3,7 @@ import ipaddress
 import json
 import sys
 import pytest
-from common_utils import MockConfigDb, mock_get_config_db_table, mock_exit_func
+from common_utils import MockConfigDb, mock_get_config_db_table, mock_exit_func, PORT_MODE_SUBSCRIBE_TABLE
 from dhcp_server.common.utils import DhcpDbConnector
 from dhcp_server.dhcpservd.dhcp_cfggen import DhcpServCfgGenerator
 from unittest.mock import patch
@@ -330,17 +330,19 @@ def test_generate(mock_swsscommon_dbconnector_init, mock_parse_port_map_alias, m
          patch.object(DhcpServCfgGenerator, "_parse_range"), \
          patch.object(DhcpServCfgGenerator, "_parse_port", return_value=(None, set(["range1"]))), \
          patch.object(DhcpServCfgGenerator, "_parse_customized_options"), \
-         patch.object(DhcpServCfgGenerator, "_construct_obj_for_template", return_value=(None, set(["Vlan1000"]),
-                                                                                         set(["option1"]))), \
+         patch.object(DhcpServCfgGenerator, "_construct_obj_for_template",
+                      return_value=(None, set(["Vlan1000"]), set(["option1"]), set(["dummy"]))), \
          patch.object(DhcpServCfgGenerator, "_render_config", return_value="dummy_config"), \
          patch.object(DhcpDbConnector, "get_config_db_table", side_effect=mock_get_config_db_table):
         dhcp_db_connector = DhcpDbConnector()
         dhcp_cfg_generator = DhcpServCfgGenerator(dhcp_db_connector)
-        kea_dhcp4_config, used_ranges, enabled_dhcp_interfaces, used_options = dhcp_cfg_generator.generate()
+        kea_dhcp4_config, used_ranges, enabled_dhcp_interfaces, used_options, subscribe_table = \
+            dhcp_cfg_generator.generate()
         assert kea_dhcp4_config == "dummy_config"
         assert used_ranges == set(["range1"])
         assert enabled_dhcp_interfaces == set(["Vlan1000"])
         assert used_options == set(["option1"])
+        assert subscribe_table == set(["dummy"])
 
 
 def test_construct_obj_for_template(mock_swsscommon_dbconnector_init, mock_parse_port_map_alias,
@@ -350,12 +352,13 @@ def test_construct_obj_for_template(mock_swsscommon_dbconnector_init, mock_parse
     customized_options = {"option223": {"id": "223", "value": "dummy_value", "type": "string", "always_send": "true"}}
     dhcp_cfg_generator = DhcpServCfgGenerator(dhcp_db_connector)
     tested_hostname = "sonic-host"
-    render_obj, enabled_dhcp_interfaces, used_options = \
+    render_obj, enabled_dhcp_interfaces, used_options, subscribe_table = \
         dhcp_cfg_generator._construct_obj_for_template(mock_config_db.config_db.get("DHCP_SERVER_IPV4"),
                                                        tested_parsed_port, tested_hostname, customized_options)
     assert render_obj == expected_render_obj
     assert enabled_dhcp_interfaces == {"Vlan1000", "Vlan4000", "Vlan3000"}
     assert used_options == set(["option223"])
+    assert subscribe_table == set(PORT_MODE_SUBSCRIBE_TABLE)
 
 
 @pytest.mark.parametrize("with_port_config", [True, False])
