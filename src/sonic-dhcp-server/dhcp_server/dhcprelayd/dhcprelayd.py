@@ -16,6 +16,7 @@ DHCP_SERVER_IPV4 = "DHCP_SERVER_IPV4"
 VLAN = "VLAN"
 DEFAULT_SELECT_TIMEOUT = 5000  # millisecond
 DHCP_SERVER_INTERFACE = "eth0"
+DEFAULT_SUBSCRIBED_tABLES = ["VLAN", "DHCP_SERVER_IPV4", "VLAN_INTERFACE"]
 
 KILLED_OLD = 1
 NOT_KILLED = 2
@@ -179,6 +180,7 @@ class DhcpRelayd(object):
 def main():
     dhcp_db_connector = DhcpDbConnector(redis_sock=REDIS_SOCK_PATH)
     db_monitor = DhcpRelaydDbMonitor(dhcp_db_connector, DEFAULT_SELECT_TIMEOUT)
+    db_monitor.subscribe_tables(DEFAULT_SUBSCRIBED_tABLES)
     dhcprelayd = DhcpRelayd(dhcp_db_connector, db_monitor)
     dhcprelayd.start()
     dhcprelayd.wait()

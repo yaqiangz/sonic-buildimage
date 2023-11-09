@@ -95,10 +95,6 @@ def mock_exit_func(status):
     raise SystemExit(status)
 
 
-def mock_subscriber_state_table(db, table_name):
-    return table_name
-
-
 def get_subscribe_table_tested_data(test_name):
     test_obj = {}
     with open(TEST_DATA_PATH, "r") as file:
@@ -111,16 +107,3 @@ def get_subscribe_table_tested_data(test_name):
             data["table"][i][2] = tuple(data["table"][i][2])
             data["table"][i] = tuple(data["table"][i])
     return tested_data
-
-
-class MockDhcpServdMonitor(object):
-    def unsubscribe_tables(self, table_set):
-        pass
-
-    def subscribe_tables(self, table_set):
-        pass
-
-
-class MockDbEventChecker(object):
-    def remove_subscribe(self):
-        pass

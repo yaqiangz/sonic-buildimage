@@ -3,8 +3,9 @@ import psutil
 import signal
 import sys
 import time
-from common_utils import MockProc, MockDhcpServdMonitor
+from common_utils import MockProc
 from dhcp_server.common.utils import DhcpDbConnector
+from dhcp_server.common.dhcp_db_monitor import DhcpServdDbMonitor
 from dhcp_server.dhcpservd.dhcp_cfggen import DhcpServCfgGenerator
 from dhcp_server.dhcpservd.dhcpservd import DhcpServd
 from swsscommon import swsscommon
@@ -24,7 +25,7 @@ PORT_MODE_SUBSCRIBE_TABLE = [DHCP_SERVER_IPV4, DHCP_SERVER_IPV4_CUSTOMIZED_OPTIO
 
 
 @pytest.mark.parametrize("subscribed_table", [None, set(PORT_MODE_SUBSCRIBE_TABLE)])
-def test_dump_dhcp4_config(mock_swsscommon_dbconnector_init, mock_subscribe_table, subscribed_table):
+def test_dump_dhcp4_config(mock_swsscommon_dbconnector_init, subscribed_table):
     new_subscribe_tables = set("VLAN")
     with patch("dhcp_server.dhcpservd.dhcp_cfggen.DhcpServCfgGenerator.generate",
                return_value=("dummy_config", set(), set(), set(), new_subscribe_tables)) as mock_generate, \
@@ -33,10 +34,10 @@ def test_dump_dhcp4_config(mock_swsscommon_dbconnector_init, mock_subscribe_tabl
          patch.object(DhcpServd, "subscribe_table",
                       return_value=subscribed_table if subscribed_table is not None else None,
                       new_callable=PropertyMock), \
-         patch.object(DhcpServd, "dhcp_servd_monitor", return_value=MockDhcpServdMonitor,
+         patch.object(DhcpServd, "dhcp_servd_monitor", return_value=DhcpServdDbMonitor,
                       new_callable=PropertyMock), \
-         patch.object(MockDhcpServdMonitor, "unsubscribe_tables") as mock_unsubscribe, \
-         patch.object(MockDhcpServdMonitor, "subscribe_tables") as mock_subscribe:
+         patch.object(DhcpServdDbMonitor, "unsubscribe_tables") as mock_unsubscribe, \
+         patch.object(DhcpServdDbMonitor, "subscribe_tables") as mock_subscribe:
         dhcp_db_connector = DhcpDbConnector()
         dhcp_cfg_generator = DhcpServCfgGenerator(dhcp_db_connector,
                                                   port_map_path="tests/test_data/port-name-alias-map.txt",
@@ -58,7 +59,7 @@ def test_dump_dhcp4_config(mock_swsscommon_dbconnector_init, mock_subscribe_tabl
 
 @pytest.mark.parametrize("process_list", [["proc1", "proc2", "kea-dhcp4"], ["proc1", "proc2"]])
 def test_notify_kea_dhcp4_proc(process_list, mock_swsscommon_dbconnector_init, mock_get_render_template,
-                               mock_parse_port_map_alias, mock_subscribe_table):
+                               mock_parse_port_map_alias):
     proc_list = [MockProc(process_name) for process_name in process_list]
     with patch.object(psutil, "process_iter", return_value=proc_list), \
          patch.object(MockProc, "send_signal", MagicMock()) as mock_send_signal:
@@ -76,7 +77,7 @@ def test_notify_kea_dhcp4_proc(process_list, mock_swsscommon_dbconnector_init, m
 
 @pytest.mark.parametrize("mock_intf", [True, False])
 def test_update_dhcp_server_ip(mock_swsscommon_dbconnector_init, mock_parse_port_map_alias, mock_get_render_template,
-                               mock_intf, mock_subscribe_table):
+                               mock_intf):
     mock_interface = {} if not mock_intf else {
         "eth0": [
             MockIntf(AF_INET6, "fd00::2"),
@@ -101,12 +102,12 @@ def test_update_dhcp_server_ip(mock_swsscommon_dbconnector_init, mock_parse_port
             mock_sleep.assert_has_calls([call(5) for _ in range(10)])
 
 
-def test_start(mock_swsscommon_dbconnector_init, mock_parse_port_map_alias, mock_get_render_template,
-               mock_subscribe_table):
+def test_start(mock_swsscommon_dbconnector_init, mock_parse_port_map_alias, mock_get_render_template):
     with patch.object(DhcpServd, "dump_dhcp4_config") as mock_dump, \
          patch.object(DhcpServd, "_update_dhcp_server_ip") as mock_update_dhcp_server_ip, \
          patch.object(DhcpServd, "subscribe_table", return_value=PORT_MODE_SUBSCRIBE_TABLE,
-                      new_callable=PropertyMock):
+                      new_callable=PropertyMock), \
+         patch.object(DhcpServdDbMonitor, "subscribe_tables"):
         dhcp_db_connector = DhcpDbConnector()
         dhcp_cfg_generator = DhcpServCfgGenerator(dhcp_db_connector)
         dhcpservd = DhcpServd(dhcp_cfg_generator, dhcp_db_connector)
