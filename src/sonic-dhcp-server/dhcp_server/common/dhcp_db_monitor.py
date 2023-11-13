@@ -17,7 +17,7 @@ VLAN_INTERFACE = "VLAN_INTERFACE"
 class ConfigDbEventChecker(object):
     table_name = ""
     subscriber_state_table = None
-    is_subscribed = False
+    enabled = False
 
     def __init__(self, sel):
         """
@@ -49,37 +49,45 @@ class ConfigDbEventChecker(object):
             return False, None
         return True, db_snapshot[param_name]
 
-    def subscribe_table(self, db):
+    def is_enabled(self):
         """
-        Subscribe table
+        Check whether checker is enabled
+        Returns:
+            If enabled, return True. Else return False
+        """
+        return self.enabled
+
+    def enable(self, db):
+        """
+        Enable checker by subscribe table
         Args:
             db: db object
         """
-        if self.is_subscribed:
-            syslog.syslog(syslog.LOG_ERR, "Cannot suscribe table {} due to it has been subscribed"
+        if self.enabled:
+            syslog.syslog(syslog.LOG_ERR, "Cannot enable {} checker due to it is enabled"
                           .format(self.table_name))
             sys.exit(1)
         self.subscriber_state_table = swsscommon.SubscriberStateTable(db, self.table_name)
         self.sel.addSelectable(self.subscriber_state_table)
-        self.is_subscribed = True
+        self.enabled = True
 
-    def remove_subscribe(self):
+    def disable(self):
         """
-        Unsubscribe table
+        Disable checker
         """
-        if not self.is_subscribed:
-            syslog.syslog(syslog.LOG_ERR, "Cannot unsuscribe table {} due to it hasn't been subscribed"
+        if not self.enabled:
+            syslog.syslog(syslog.LOG_ERR, "Cannot disable {} checker due to it is disabled"
                           .format(self.table_name))
             sys.exit(1)
         self.sel.removeSelectable(self.subscriber_state_table)
-        self.is_subscribed = False
+        self.enabled = False
 
     def _clear_event(self):
         """
         Clear update event of subscirbe table
         """
-        if not self.is_subscribed:
-            syslog.syslog(syslog.LOG_ERR, "Cannot clear event for table {} due to it hasn't been subscribed"
+        if not self.enabled:
+            syslog.syslog(syslog.LOG_ERR, "Cannot clear event for table {} due to it is disabled"
                           .format(self.table_name))
             sys.exit(1)
         while self.subscriber_state_table.hasData():
@@ -327,17 +335,17 @@ class DhcpRelaydDbMonitor(object):
         self.checker_dict[VLAN] = VlanTableEventChecker(self.sel)
         self.checker_dict[VLAN_INTERFACE] = VlanIntfTableEventChecker(self.sel)
 
-    def subscribe_tables(self, tables):
+    def enable_checker(self, checker_names):
         """
-        Subscribe tables
+        Enable checkers
         Args:
-            tables: set of tables to be subscribed
+            checker_names: set of tables checker to be enable
         """
-        for table in tables:
+        for table in checker_names:
             if table not in self.checker_dict:
                 syslog.syslog(syslog.LOG_ERR, "Cannot find checker for {} in checker_dict".format(table))
-                sys.exit(1)
-            self.checker_dict[table].subscribe_table(self.db_connector.config_db)
+                continue
+            self.checker_dict[table].enable(self.db_connector.config_db)
 
     def check_db_update(self, db_snapshot):
         """
@@ -357,7 +365,6 @@ class DhcpRelaydDbMonitor(object):
 
 class DhcpServdDbMonitor(object):
     checker_dict = {}
-    subscribed_table = set()
 
     def __init__(self, db_connector, select_timeout=DEFAULT_SELECT_TIMEOUT):
         self.db_connector = db_connector
@@ -369,31 +376,29 @@ class DhcpServdDbMonitor(object):
         for checker in checker_list:
             self.checker_dict[checker.table_name] = checker
 
-    def unsubscribe_tables(self, unsubscribe_tables):
+    def disable_checkers(self, checker_names):
         """
-        Unsubscribe monitor table change of tables
+        Disable checkers
         Args:
-            unsubscribe_tables: set contains name of tables need to be unsubscribed
+            checker_names: set contains name of tables need to be disable
         """
-        for table in unsubscribe_tables:
+        for table in checker_names:
             if table not in self.checker_dict:
                 syslog.syslog(syslog.LOG_ERR, "Cannot find checker for {} in checker_dict".format(table))
-                sys.exit(1)
-            self.checker_dict[table].remove_subscribe()
-            self.subscribed_table.discard(table)
+                continue
+            self.checker_dict[table].disable()
 
-    def subscribe_tables(self, subscribe_tables):
+    def enable_checkers(self, checker_names):
         """
-        Subscribe monitor table change of tables
+        Enable checkers
         Args:
-            subscribe_tables: set contains name of tables need to be subscribed
+            checker_names: set contains name of tables need to be enable
         """
-        for table in subscribe_tables:
+        for table in checker_names:
             if table not in self.checker_dict:
                 syslog.syslog(syslog.LOG_ERR, "Cannot find checker for {} in checker_dict".format(table))
-                sys.exit(1)
-            self.checker_dict[table].subscribe_table(self.db_connector.config_db)
-            self.subscribed_table.add(table)
+                continue
+            self.checker_dict[table].enable(self.db_connector.config_db)
 
     def check_db_update(self, db_snapshot):
         """
@@ -408,7 +413,7 @@ class DhcpServdDbMonitor(object):
             return False
         need_refresh = False
         for checker in self.checker_dict.values():
-            if checker.table_name not in self.subscribed_table:
+            if not checker.is_enabled():
                 continue
             need_refresh |= checker.check_update_event(db_snapshot)
         return need_refresh

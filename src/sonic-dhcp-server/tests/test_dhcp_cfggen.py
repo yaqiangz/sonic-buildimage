@@ -1,9 +1,8 @@
 import copy
 import ipaddress
 import json
-import sys
 import pytest
-from common_utils import MockConfigDb, mock_get_config_db_table, mock_exit_func, PORT_MODE_SUBSCRIBE_TABLE
+from common_utils import MockConfigDb, mock_get_config_db_table, PORT_MODE_SUBSCRIBE_TABLE
 from dhcp_server.common.utils import DhcpDbConnector
 from dhcp_server.dhcpservd.dhcp_cfggen import DhcpServCfgGenerator
 from unittest.mock import patch
@@ -388,20 +387,19 @@ def test_render_config(mock_swsscommon_dbconnector_init, mock_parse_port_map_ali
 @pytest.mark.parametrize("tested_options_data", tested_options_data)
 def test_parse_customized_options(mock_swsscommon_dbconnector_init, mock_get_render_template,
                                   mock_parse_port_map_alias, tested_options_data):
-    with patch.object(sys, "exit", side_effect=mock_exit_func):
-        dhcp_db_connector = DhcpDbConnector()
-        dhcp_cfg_generator = DhcpServCfgGenerator(dhcp_db_connector)
-        customized_options_ipv4 = tested_options_data["data"]
-        try:
-            customized_options = dhcp_cfg_generator._parse_customized_options(customized_options_ipv4)
-            assert customized_options == {
-                "option223": {
-                    "id": "223",
-                    "value": "dummy_value",
-                    "type": "string",
-                    "always_send": "true"
-                }
+    dhcp_db_connector = DhcpDbConnector()
+    dhcp_cfg_generator = DhcpServCfgGenerator(dhcp_db_connector)
+    customized_options_ipv4 = tested_options_data["data"]
+    customized_options = dhcp_cfg_generator._parse_customized_options(customized_options_ipv4)
+    print(customized_options)
+    if tested_options_data["res"]:
+        assert customized_options == {
+            "option223": {
+                "id": "223",
+                "value": "dummy_value",
+                "type": "string",
+                "always_send": "true"
             }
-            assert tested_options_data["res"]
-        except SystemExit:
-            assert not tested_options_data["res"]
+        }
+    else:
+        assert customized_options == {}

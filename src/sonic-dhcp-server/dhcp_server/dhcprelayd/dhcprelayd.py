@@ -180,7 +180,7 @@ class DhcpRelayd(object):
 def main():
     dhcp_db_connector = DhcpDbConnector(redis_sock=REDIS_SOCK_PATH)
     db_monitor = DhcpRelaydDbMonitor(dhcp_db_connector, DEFAULT_SELECT_TIMEOUT)
-    db_monitor.subscribe_tables(DEFAULT_SUBSCRIBED_tABLES)
+    db_monitor.enable_checker(DEFAULT_SUBSCRIBED_tABLES)
     dhcprelayd = DhcpRelayd(dhcp_db_connector, db_monitor)
     dhcprelayd.start()
     dhcprelayd.wait()

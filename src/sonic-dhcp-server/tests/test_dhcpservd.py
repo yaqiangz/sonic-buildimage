@@ -36,8 +36,8 @@ def test_dump_dhcp4_config(mock_swsscommon_dbconnector_init, subscribed_table):
                       new_callable=PropertyMock), \
          patch.object(DhcpServd, "dhcp_servd_monitor", return_value=DhcpServdDbMonitor,
                       new_callable=PropertyMock), \
-         patch.object(DhcpServdDbMonitor, "unsubscribe_tables") as mock_unsubscribe, \
-         patch.object(DhcpServdDbMonitor, "subscribe_tables") as mock_subscribe:
+         patch.object(DhcpServdDbMonitor, "disable_checkers") as mock_unsubscribe, \
+         patch.object(DhcpServdDbMonitor, "enable_checkers") as mock_subscribe:
         dhcp_db_connector = DhcpDbConnector()
         dhcp_cfg_generator = DhcpServCfgGenerator(dhcp_db_connector,
                                                   port_map_path="tests/test_data/port-name-alias-map.txt",
@@ -107,7 +107,7 @@ def test_start(mock_swsscommon_dbconnector_init, mock_parse_port_map_alias, mock
          patch.object(DhcpServd, "_update_dhcp_server_ip") as mock_update_dhcp_server_ip, \
          patch.object(DhcpServd, "subscribe_table", return_value=PORT_MODE_SUBSCRIBE_TABLE,
                       new_callable=PropertyMock), \
-         patch.object(DhcpServdDbMonitor, "subscribe_tables"):
+         patch.object(DhcpServdDbMonitor, "enable_checkers"):
         dhcp_db_connector = DhcpDbConnector()
         dhcp_cfg_generator = DhcpServCfgGenerator(dhcp_db_connector)
         dhcpservd = DhcpServd(dhcp_cfg_generator, dhcp_db_connector)

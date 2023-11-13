@@ -46,8 +46,8 @@ class DhcpServd(object):
             self.dhcp_cfg_generator.generate()
         if self.subscribe_table is not None and self.subscribe_table != subscribe_table:
             # Has subcribe table and no equal, need to resubscribe
-            self.dhcp_servd_monitor.unsubscribe_tables(self.subscribe_table - subscribe_table)
-            self.dhcp_servd_monitor.subscribe_tables(subscribe_table - self.subscribe_table)
+            self.dhcp_servd_monitor.disable_checkers(self.subscribe_table - subscribe_table)
+            self.dhcp_servd_monitor.enable_checkers(subscribe_table - self.subscribe_table)
         self.subscribe_table = subscribe_table
         self.used_range = used_ranges
         self.enabled_dhcp_interfaces = enabled_dhcp_interfaces
@@ -79,7 +79,7 @@ class DhcpServd(object):
         self.dump_dhcp4_config()
         self._update_dhcp_server_ip()
         self.dhcp_servd_monitor = DhcpServdDbMonitor(self.db_connector, DEFAULT_SELECT_TIMEOUT)
-        self.dhcp_servd_monitor.subscribe_tables(self.subscribe_table)
+        self.dhcp_servd_monitor.enable_checkers(self.subscribe_table)
         lease_manager = LeaseManager(self.db_connector, KEA_LEASE_FILE_PATH)
         lease_manager.start()
 
