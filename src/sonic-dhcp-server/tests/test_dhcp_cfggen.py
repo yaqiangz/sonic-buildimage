@@ -2,7 +2,7 @@ import copy
 import ipaddress
 import json
 import pytest
-from common_utils import MockConfigDb, mock_get_config_db_table, PORT_MODE_SUBSCRIBE_TABLE
+from common_utils import MockConfigDb, mock_get_config_db_table, PORT_MODE_CHECKER
 from dhcp_server.common.utils import DhcpDbConnector
 from dhcp_server.dhcpservd.dhcp_cfggen import DhcpServCfgGenerator
 from unittest.mock import patch
@@ -357,7 +357,7 @@ def test_construct_obj_for_template(mock_swsscommon_dbconnector_init, mock_parse
     assert render_obj == expected_render_obj
     assert enabled_dhcp_interfaces == {"Vlan1000", "Vlan4000", "Vlan3000"}
     assert used_options == set(["option223"])
-    assert subscribe_table == set(PORT_MODE_SUBSCRIBE_TABLE)
+    assert subscribe_table == set(PORT_MODE_CHECKER)
 
 
 @pytest.mark.parametrize("with_port_config", [True, False])
@@ -391,7 +391,6 @@ def test_parse_customized_options(mock_swsscommon_dbconnector_init, mock_get_ren
     dhcp_cfg_generator = DhcpServCfgGenerator(dhcp_db_connector)
     customized_options_ipv4 = tested_options_data["data"]
     customized_options = dhcp_cfg_generator._parse_customized_options(customized_options_ipv4)
-    print(customized_options)
     if tested_options_data["res"]:
         assert customized_options == {
             "option223": {

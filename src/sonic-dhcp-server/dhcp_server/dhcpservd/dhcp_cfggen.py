@@ -2,7 +2,6 @@
 
 import ipaddress
 import os
-import sys
 import syslog
 
 from jinja2 import Environment, FileSystemLoader
@@ -14,11 +13,11 @@ DHCP_SERVER_IPV4 = "DHCP_SERVER_IPV4"
 DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS = "DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS"
 DHCP_SERVER_IPV4_RANGE = "DHCP_SERVER_IPV4_RANGE"
 DHCP_SERVER_IPV4_PORT = "DHCP_SERVER_IPV4_PORT"
-VLAN = "VLAN"
 VLAN_INTERFACE = "VLAN_INTERFACE"
 VLAN_MEMBER = "VLAN_MEMBER"
-PORT_MODE_SUBSCRIBE_TABLE = [DHCP_SERVER_IPV4, DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS, DHCP_SERVER_IPV4_PORT,
-                             DHCP_SERVER_IPV4_RANGE, VLAN, VLAN_INTERFACE, VLAN_MEMBER]
+PORT_MODE_CHECKER = ["DhcpServerTableCfgChangeEventChecker", "DhcpPortTableEventChecker", "DhcpRangeTableEventChecker",
+                     "DhcpOptionTableEventChecker", "VlanTableEventChecker", "VlanIntfTableEventChecker",
+                     "VlanMemberTableEventChecker"]
 LEASE_UPDATE_SCRIPT_PATH = "/etc/kea/lease_update.sh"
 DEFAULT_LEASE_TIME = 900
 DEFAULT_LEASE_PATH = "/tmp/kea-lease.csv"
@@ -60,8 +59,8 @@ class DhcpServCfgGenerator(object):
         device_metadata = self.db_connector.get_config_db_table("DEVICE_METADATA")
         hostname = self._parse_hostname(device_metadata)
         # Get ip information of vlan
-        vlan_interface = self.db_connector.get_config_db_table("VLAN_INTERFACE")
-        vlan_member_table = self.db_connector.get_config_db_table("VLAN_MEMBER")
+        vlan_interface = self.db_connector.get_config_db_table(VLAN_INTERFACE)
+        vlan_member_table = self.db_connector.get_config_db_table(VLAN_MEMBER)
         vlan_interfaces, vlan_members = self._parse_vlan(vlan_interface, vlan_member_table)
         dhcp_server_ipv4, customized_options_ipv4, range_ipv4, port_ipv4 = self._get_dhcp_ipv4_tables_from_db()
         # Parse range table
@@ -138,12 +137,13 @@ class DhcpServCfgGenerator(object):
         enabled_dhcp_interfaces = set()
         used_options = set()
         # Different mode would subscribe different table, always subscribe DHCP_SERVER_IPV4
-        subscribe_table = set([DHCP_SERVER_IPV4])
+        subscribe_table = set(["DhcpServerTableCfgChangeEventChecker"])
         for dhcp_interface_name, dhcp_config in dhcp_server_ipv4.items():
             if "state" not in dhcp_config or dhcp_config["state"] != "enabled":
                 continue
             enabled_dhcp_interfaces.add(dhcp_interface_name)
             if dhcp_config["mode"] == "PORT":
+                subscribe_table |= set(PORT_MODE_CHECKER)
                 if dhcp_interface_name not in port_ips:
                     syslog.syslog(syslog.LOG_WARNING, "Cannot get DHCP port config for {}"
                                   .format(dhcp_interface_name))
@@ -183,7 +183,6 @@ class DhcpServCfgGenerator(object):
                     }
                     used_options = used_options | set(subnet_obj["customized_options"])
                     subnets.append(subnet_obj)
-                subscribe_table |= set(PORT_MODE_SUBSCRIBE_TABLE)
         render_obj = {
             "subnets": subnets,
             "client_classes": client_classes,

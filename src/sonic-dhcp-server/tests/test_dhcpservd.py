@@ -13,48 +13,40 @@ from unittest.mock import patch, call, MagicMock, PropertyMock
 
 AF_INET = 2
 AF_INET6 = 10
-DHCP_SERVER_IPV4 = "DHCP_SERVER_IPV4"
-DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS = "DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS"
-DHCP_SERVER_IPV4_RANGE = "DHCP_SERVER_IPV4_RANGE"
-DHCP_SERVER_IPV4_PORT = "DHCP_SERVER_IPV4_PORT"
-VLAN = "VLAN"
-VLAN_INTERFACE = "VLAN_INTERFACE"
-VLAN_MEMBER = "VLAN_MEMBER"
-PORT_MODE_SUBSCRIBE_TABLE = [DHCP_SERVER_IPV4, DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS, DHCP_SERVER_IPV4_PORT,
-                             DHCP_SERVER_IPV4_RANGE, VLAN, VLAN_INTERFACE, VLAN_MEMBER]
+PORT_MODE_CHECKER = ["DhcpServerTableCfgChangeEventChecker", "DhcpPortTableEventChecker", "DhcpRangeTableEventChecker",
+                     "DhcpOptionTableEventChecker", "VlanTableEventChecker", "VlanIntfTableEventChecker",
+                     "VlanMemberTableEventChecker"]
 
 
-@pytest.mark.parametrize("subscribed_table", [None, set(PORT_MODE_SUBSCRIBE_TABLE)])
-def test_dump_dhcp4_config(mock_swsscommon_dbconnector_init, subscribed_table):
-    new_subscribe_tables = set("VLAN")
+@pytest.mark.parametrize("enabled_checker", [None, set(PORT_MODE_CHECKER)])
+def test_dump_dhcp4_config(mock_swsscommon_dbconnector_init, enabled_checker):
+    new_enabled_checker = set(["VlanTableEventChecker"])
     with patch("dhcp_server.dhcpservd.dhcp_cfggen.DhcpServCfgGenerator.generate",
-               return_value=("dummy_config", set(), set(), set(), new_subscribe_tables)) as mock_generate, \
+               return_value=("dummy_config", set(), set(), set(), new_enabled_checker)) as mock_generate, \
          patch("dhcp_server.dhcpservd.dhcpservd.DhcpServd._notify_kea_dhcp4_proc",
                MagicMock()) as mock_notify_kea_dhcp4_proc, \
-         patch.object(DhcpServd, "subscribe_table",
-                      return_value=subscribed_table if subscribed_table is not None else None,
-                      new_callable=PropertyMock), \
          patch.object(DhcpServd, "dhcp_servd_monitor", return_value=DhcpServdDbMonitor,
                       new_callable=PropertyMock), \
          patch.object(DhcpServdDbMonitor, "disable_checkers") as mock_unsubscribe, \
-         patch.object(DhcpServdDbMonitor, "enable_checkers") as mock_subscribe:
+         patch.object(DhcpServdDbMonitor, "enable_checkers") as mock_subscribe, \
+         patch.object(DhcpServd, "enabled_checker", return_value=enabled_checker, new_callable=PropertyMock):
         dhcp_db_connector = DhcpDbConnector()
         dhcp_cfg_generator = DhcpServCfgGenerator(dhcp_db_connector,
                                                   port_map_path="tests/test_data/port-name-alias-map.txt",
                                                   kea_conf_template_path="tests/test_data/kea-dhcp4.conf.j2")
-        dhcpservd = DhcpServd(dhcp_cfg_generator, dhcp_db_connector,
+        dhcpservd = DhcpServd(dhcp_cfg_generator, dhcp_db_connector, None,
                               kea_dhcp4_config_path="/tmp/kea-dhcp4.conf")
         dhcpservd.dump_dhcp4_config()
         # Verfiy whether generate() func of dhcp_cfggen is called
         mock_generate.assert_called_once_with()
         # Verify whether notify func of dhcpservd is called, which is expected to call after new config generated
         mock_notify_kea_dhcp4_proc.assert_called_once_with()
-        if subscribed_table is None:
+        if enabled_checker is None:
             mock_subscribe.assert_not_called()
             mock_unsubscribe.assert_not_called()
         else:
-            mock_unsubscribe.assert_called_once_with(subscribed_table - new_subscribe_tables)
-            mock_subscribe.assert_called_once_with(new_subscribe_tables)
+            mock_unsubscribe.assert_called_once_with(enabled_checker - new_enabled_checker)
+            mock_subscribe.assert_called_once_with(new_enabled_checker - enabled_checker)
 
 
 @pytest.mark.parametrize("process_list", [["proc1", "proc2", "kea-dhcp4"], ["proc1", "proc2"]])
@@ -65,7 +57,7 @@ def test_notify_kea_dhcp4_proc(process_list, mock_swsscommon_dbconnector_init, m
          patch.object(MockProc, "send_signal", MagicMock()) as mock_send_signal:
         dhcp_db_connector = DhcpDbConnector()
         dhcp_cfg_generator = DhcpServCfgGenerator(dhcp_db_connector)
-        dhcpservd = DhcpServd(dhcp_cfg_generator, dhcp_db_connector)
+        dhcpservd = DhcpServd(dhcp_cfg_generator, dhcp_db_connector, None)
         dhcpservd._notify_kea_dhcp4_proc()
         if "kea-dhcp4" in process_list:
             mock_send_signal.assert_has_calls([
@@ -90,7 +82,7 @@ def test_update_dhcp_server_ip(mock_swsscommon_dbconnector_init, mock_parse_port
          patch.object(sys, "exit") as mock_exit:
         dhcp_db_connector = DhcpDbConnector()
         dhcp_cfg_generator = DhcpServCfgGenerator(dhcp_db_connector)
-        dhcpservd = DhcpServd(dhcp_cfg_generator, dhcp_db_connector)
+        dhcpservd = DhcpServd(dhcp_cfg_generator, dhcp_db_connector, None)
         dhcpservd._update_dhcp_server_ip()
         if mock_intf:
             mock_hset.assert_has_calls([
@@ -105,12 +97,10 @@ def test_update_dhcp_server_ip(mock_swsscommon_dbconnector_init, mock_parse_port
 def test_start(mock_swsscommon_dbconnector_init, mock_parse_port_map_alias, mock_get_render_template):
     with patch.object(DhcpServd, "dump_dhcp4_config") as mock_dump, \
          patch.object(DhcpServd, "_update_dhcp_server_ip") as mock_update_dhcp_server_ip, \
-         patch.object(DhcpServd, "subscribe_table", return_value=PORT_MODE_SUBSCRIBE_TABLE,
-                      new_callable=PropertyMock), \
          patch.object(DhcpServdDbMonitor, "enable_checkers"):
         dhcp_db_connector = DhcpDbConnector()
         dhcp_cfg_generator = DhcpServCfgGenerator(dhcp_db_connector)
-        dhcpservd = DhcpServd(dhcp_cfg_generator, dhcp_db_connector)
+        dhcpservd = DhcpServd(dhcp_cfg_generator, dhcp_db_connector, MagicMock())
         dhcpservd.start()
         mock_dump.assert_called_once_with()
         mock_update_dhcp_server_ip.assert_called_once_with()

@@ -5,7 +5,7 @@ import sys
 import time
 from common_utils import mock_get_config_db_table, MockProc, MockPopen
 from dhcp_server.common.utils import DhcpDbConnector
-from dhcp_server.common.dhcp_db_monitor import DhcpRelaydDbMonitor, ConfigDbEventChecker
+from dhcp_server.common.dhcp_db_monitor import ConfigDbEventChecker
 from dhcp_server.dhcprelayd.dhcprelayd import DhcpRelayd, KILLED_OLD, NOT_KILLED, NOT_FOUND_PROC
 from swsscommon import swsscommon
 from unittest.mock import patch, call
@@ -15,8 +15,7 @@ def test_start(mock_swsscommon_dbconnector_init):
     with patch.object(DhcpRelayd, "refresh_dhcrelay", return_value=None) as mock_refresh, \
          patch.object(ConfigDbEventChecker, "enable"):
         dhcp_db_connector = DhcpDbConnector()
-        db_monitor = DhcpRelaydDbMonitor(dhcp_db_connector)
-        dhcprelayd = DhcpRelayd(dhcp_db_connector, db_monitor)
+        dhcprelayd = DhcpRelayd(dhcp_db_connector, None)
         dhcprelayd.start()
         mock_refresh.assert_called_once_with()
 
@@ -28,8 +27,7 @@ def test_refresh_dhcrelay(mock_swsscommon_dbconnector_init):
          patch.object(DhcpRelayd, "_start_dhcpmon_process", return_value=None), \
          patch.object(ConfigDbEventChecker, "enable"):
         dhcp_db_connector = DhcpDbConnector()
-        db_monitor = DhcpRelaydDbMonitor(dhcp_db_connector)
-        dhcprelayd = DhcpRelayd(dhcp_db_connector, db_monitor)
+        dhcprelayd = DhcpRelayd(dhcp_db_connector, None)
         dhcprelayd.refresh_dhcrelay()
 
 
@@ -46,8 +44,7 @@ def test_start_dhcrelay_process(mock_swsscommon_dbconnector_init, new_dhcp_inter
          patch.object(sys, "exit") as mock_exit, \
          patch.object(ConfigDbEventChecker, "enable"):
         dhcp_db_connector = DhcpDbConnector()
-        db_monitor = DhcpRelaydDbMonitor(dhcp_db_connector)
-        dhcprelayd = DhcpRelayd(dhcp_db_connector, db_monitor)
+        dhcprelayd = DhcpRelayd(dhcp_db_connector, None)
         dhcprelayd._start_dhcrelay_process(new_dhcp_interfaces, "240.127.1.2", False)
         if len(new_dhcp_interfaces) == 0 or kill_res == NOT_KILLED:
             mock_popen.assert_not_called()
@@ -79,8 +76,7 @@ def test_start_dhcpmon_process(mock_swsscommon_dbconnector_init, new_dhcp_interf
          patch.object(psutil.Process, "status", return_value=proc_status), \
          patch.object(ConfigDbEventChecker, "enable"):
         dhcp_db_connector = DhcpDbConnector()
-        db_monitor = DhcpRelaydDbMonitor(dhcp_db_connector)
-        dhcprelayd = DhcpRelayd(dhcp_db_connector, db_monitor)
+        dhcprelayd = DhcpRelayd(dhcp_db_connector, None)
         dhcprelayd._start_dhcpmon_process(new_dhcp_interfaces, False)
         if len(new_dhcp_interfaces) == 0 or kill_res == NOT_KILLED:
             mock_popen.assert_not_called()
@@ -109,8 +105,7 @@ def test_kill_exist_relay_releated_process(mock_swsscommon_dbconnector_init, new
     with patch.object(psutil, "process_iter", return_value=process_iter_ret), \
          patch.object(ConfigDbEventChecker, "enable"):
         dhcp_db_connector = DhcpDbConnector()
-        db_monitor = DhcpRelaydDbMonitor(dhcp_db_connector)
-        dhcprelayd = DhcpRelayd(dhcp_db_connector, db_monitor)
+        dhcprelayd = DhcpRelayd(dhcp_db_connector, None)
         res = dhcprelayd._kill_exist_relay_releated_process(new_dhcp_interfaces, process_name, force_kill)
         if force_kill and process_name in running_procs:
             assert res == KILLED_OLD
@@ -129,8 +124,7 @@ def test_get_dhcp_server_ip(mock_swsscommon_dbconnector_init, mock_swsscommon_ta
          patch.object(sys, "exit") as mock_exit, \
          patch.object(ConfigDbEventChecker, "enable"):
         dhcp_db_connector = DhcpDbConnector()
-        db_monitor = DhcpRelaydDbMonitor(dhcp_db_connector)
-        dhcprelayd = DhcpRelayd(dhcp_db_connector, db_monitor)
+        dhcprelayd = DhcpRelayd(dhcp_db_connector, None)
         ret = dhcprelayd._get_dhcp_server_ip()
         if get_res[0] == 1:
             assert ret == get_res[1]

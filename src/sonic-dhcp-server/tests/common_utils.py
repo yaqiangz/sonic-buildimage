@@ -11,8 +11,9 @@ DHCP_SERVER_IPV4_PORT = "DHCP_SERVER_IPV4_PORT"
 VLAN = "VLAN"
 VLAN_INTERFACE = "VLAN_INTERFACE"
 VLAN_MEMBER = "VLAN_MEMBER"
-PORT_MODE_SUBSCRIBE_TABLE = [DHCP_SERVER_IPV4, DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS, DHCP_SERVER_IPV4_PORT,
-                             DHCP_SERVER_IPV4_RANGE, VLAN, VLAN_INTERFACE, VLAN_MEMBER]
+PORT_MODE_CHECKER = ["DhcpServerTableCfgChangeEventChecker", "DhcpPortTableEventChecker", "DhcpRangeTableEventChecker",
+                     "DhcpOptionTableEventChecker", "VlanTableEventChecker", "VlanIntfTableEventChecker",
+                     "VlanMemberTableEventChecker"]
 
 
 class MockConfigDb(object):

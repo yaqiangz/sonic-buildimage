@@ -19,7 +19,7 @@ class ConfigDbEventChecker(object):
     subscriber_state_table = None
     enabled = False
 
-    def __init__(self, sel):
+    def __init__(self, sel, db):
         """
         Init function
         Args:
@@ -27,13 +27,9 @@ class ConfigDbEventChecker(object):
             db_connector: db connector
         """
         self.sel = sel
-
-    @classmethod
-    def get_all_subclasses(cls):
-        """
-        Function to get all subclasses
-        """
-        return cls.__subclasses__() + [g for s in cls.__subclasses__() for g in s.get_all_subclasses()]
+        self.db = db
+        self.subscriber_state_table = None
+        self.enabled = False
 
     @classmethod
     def get_parameter_by_name(cls, db_snapshot, param_name):
@@ -57,7 +53,7 @@ class ConfigDbEventChecker(object):
         """
         return self.enabled
 
-    def enable(self, db):
+    def enable(self):
         """
         Enable checker by subscribe table
         Args:
@@ -67,7 +63,7 @@ class ConfigDbEventChecker(object):
             syslog.syslog(syslog.LOG_ERR, "Cannot enable {} checker due to it is enabled"
                           .format(self.table_name))
             sys.exit(1)
-        self.subscriber_state_table = swsscommon.SubscriberStateTable(db, self.table_name)
+        self.subscriber_state_table = swsscommon.SubscriberStateTable(self.db, self.table_name)
         self.sel.addSelectable(self.subscriber_state_table)
         self.enabled = True
 
@@ -82,7 +78,7 @@ class ConfigDbEventChecker(object):
         self.sel.removeSelectable(self.subscriber_state_table)
         self.enabled = False
 
-    def _clear_event(self):
+    def clear_event(self):
         """
         Clear update event of subscirbe table
         """
@@ -132,7 +128,7 @@ class ConfigDbEventChecker(object):
             key, op, entry = self.subscriber_state_table.pop()
             need_refresh |= self._process_check(key, op, entry, parameter)
             if need_refresh:
-                self._clear_event()
+                self.clear_event()
                 return True
         return False
 
@@ -151,14 +147,22 @@ class ConfigDbEventChecker(object):
 
         return True
 
+    def get_class_name(self):
+        """
+        Get class name of this object
+        """
+        return type(self).__name__
+
 
 class DhcpServerTableCfgChangeEventChecker(ConfigDbEventChecker):
     """
     This event checker interested in all DHCP server related config change event in DHCP_SERVER_IPV4 table
     """
-    def __init__(self, sel):
+    table_name = DHCP_SERVER_IPV4
+
+    def __init__(self, sel, db):
         self.table_name = DHCP_SERVER_IPV4
-        ConfigDbEventChecker.__init__(self, sel)
+        ConfigDbEventChecker.__init__(self, sel, db)
 
     def _get_parameter(self, db_snapshot):
         return ConfigDbEventChecker.get_parameter_by_name(db_snapshot, "enabled_dhcp_interfaces")
@@ -181,9 +185,11 @@ class DhcpServerTableIntfEnablementEventChecker(ConfigDbEventChecker):
     """
     This event checker only interested in DHCP interface enabled/disabled in DHCP_SERVER_IPV4 table
     """
-    def __init__(self, sel):
+    table_name = DHCP_SERVER_IPV4
+
+    def __init__(self, sel, db):
         self.table_name = DHCP_SERVER_IPV4
-        ConfigDbEventChecker.__init__(self, sel)
+        ConfigDbEventChecker.__init__(self, sel, db)
 
     def _get_parameter(self, db_snapshot):
         return ConfigDbEventChecker.get_parameter_by_name(db_snapshot, "enabled_dhcp_interfaces")
@@ -209,9 +215,11 @@ class DhcpPortTableEventChecker(ConfigDbEventChecker):
     """
     This event checker interested in changes in DHCP_SERVER_IPV4_PORT table
     """
-    def __init__(self, sel):
+    table_name = DHCP_SERVER_IPV4_PORT
+
+    def __init__(self, sel, db):
         self.table_name = DHCP_SERVER_IPV4_PORT
-        ConfigDbEventChecker.__init__(self, sel)
+        ConfigDbEventChecker.__init__(self, sel, db)
 
     def _get_parameter(self, db_snapshot):
         return ConfigDbEventChecker.get_parameter_by_name(db_snapshot, "enabled_dhcp_interfaces")
@@ -220,7 +228,7 @@ class DhcpPortTableEventChecker(ConfigDbEventChecker):
         dhcp_interface = key.split("|")[0]
         # If dhcp interface is enabled, need to generate new configuration
         if dhcp_interface in enabled_dhcp_interfaces:
-            self._clear_event()
+            self.clear_event()
             return True
         return False
 
@@ -229,9 +237,11 @@ class DhcpRangeTableEventChecker(ConfigDbEventChecker):
     """
     This event checker interested in changes in DHCP_SERVER_IPV4_RANGE table
     """
-    def __init__(self, sel):
+    table_name = DHCP_SERVER_IPV4_RANGE
+
+    def __init__(self, sel, db):
         self.table_name = DHCP_SERVER_IPV4_RANGE
-        ConfigDbEventChecker.__init__(self, sel)
+        ConfigDbEventChecker.__init__(self, sel, db)
 
     def _get_parameter(self, db_snapshot):
         return ConfigDbEventChecker.get_parameter_by_name(db_snapshot, "used_range")
@@ -239,7 +249,7 @@ class DhcpRangeTableEventChecker(ConfigDbEventChecker):
     def _process_check(self, key, op, entry, used_range):
         # If range is used, need to generate new configuration
         if key in used_range:
-            self._clear_event()
+            self.clear_event()
             return True
         return False
 
@@ -248,9 +258,11 @@ class DhcpOptionTableEventChecker(ConfigDbEventChecker):
     """
     This event checker interested in changes in DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS table
     """
-    def __init__(self, sel):
+    table_name = DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS
+
+    def __init__(self, sel, db):
         self.table_name = DHCP_SERVER_IPV4_CUSTOMIZED_OPTIONS
-        ConfigDbEventChecker.__init__(self, sel)
+        ConfigDbEventChecker.__init__(self, sel, db)
 
     def _get_parameter(self, db_snapshot):
         return ConfigDbEventChecker.get_parameter_by_name(db_snapshot, "used_options")
@@ -258,7 +270,7 @@ class DhcpOptionTableEventChecker(ConfigDbEventChecker):
     def _process_check(self, key, op, entry, used_options):
         # If option is used, need to generate new configuration
         if key in used_options:
-            self._clear_event()
+            self.clear_event()
             return True
         return False
 
@@ -267,9 +279,11 @@ class VlanTableEventChecker(ConfigDbEventChecker):
     """
     This event checker interested in changes in VLAN table
     """
-    def __init__(self, sel):
+    table_name = VLAN
+
+    def __init__(self, sel, db):
         self.table_name = VLAN
-        ConfigDbEventChecker.__init__(self, sel)
+        ConfigDbEventChecker.__init__(self, sel, db)
 
     def _get_parameter(self, db_snapshot):
         return ConfigDbEventChecker.get_parameter_by_name(db_snapshot, "enabled_dhcp_interfaces")
@@ -277,7 +291,7 @@ class VlanTableEventChecker(ConfigDbEventChecker):
     def _process_check(self, key, op, entry, enabled_dhcp_interfaces):
         # For vlan doesn't have related dhcp entry, not need to refresh dhcrelay process
         if key in enabled_dhcp_interfaces:
-            self._clear_event()
+            self.clear_event()
             return True
         return False
 
@@ -286,9 +300,11 @@ class VlanIntfTableEventChecker(ConfigDbEventChecker):
     """
     This event checker interested in changes in VLAN_INTERFACE table
     """
-    def __init__(self, sel):
+    table_name = VLAN_INTERFACE
+
+    def __init__(self, sel, db):
         self.table_name = VLAN_INTERFACE
-        ConfigDbEventChecker.__init__(self, sel)
+        ConfigDbEventChecker.__init__(self, sel, db)
 
     def _get_parameter(self, db_snapshot):
         return ConfigDbEventChecker.get_parameter_by_name(db_snapshot, "enabled_dhcp_interfaces")
@@ -300,7 +316,7 @@ class VlanIntfTableEventChecker(ConfigDbEventChecker):
         # For vlan doesn't have related dhcp entry, not need to refresh dhcrelay process
         if vlan_name in enabled_dhcp_interfaces and ip_address is not None and \
            ipaddress.ip_address(ip_address).version == 4:
-            self._clear_event()
+            self.clear_event()
             return True
         return False
 
@@ -309,9 +325,11 @@ class VlanMemberTableEventChecker(ConfigDbEventChecker):
     """
     This event checker interested in changes in VLAN_MEMBER table
     """
-    def __init__(self, sel):
+    table_name = VLAN_MEMBER
+
+    def __init__(self, sel, db):
         self.table_name = VLAN_MEMBER
-        ConfigDbEventChecker.__init__(self, sel)
+        ConfigDbEventChecker.__init__(self, sel, db)
 
     def _get_parameter(self, db_snapshot):
         return ConfigDbEventChecker.get_parameter_by_name(db_snapshot, "enabled_dhcp_interfaces")
@@ -320,20 +338,21 @@ class VlanMemberTableEventChecker(ConfigDbEventChecker):
         dhcp_interface = key.split("|")[0]
         # If dhcp interface is enabled, need to generate new configuration
         if dhcp_interface in enabled_dhcp_interfaces:
-            self._clear_event()
+            self.clear_event()
             return True
         return False
 
 
 class DhcpRelaydDbMonitor(object):
-    def __init__(self, db_connector, select_timeout=DEFAULT_SELECT_TIMEOUT):
+    checker_dict = {}
+
+    def __init__(self, db_connector, sel, checkers, select_timeout=DEFAULT_SELECT_TIMEOUT):
         self.db_connector = db_connector
-        self.sel = swsscommon.Select()
+        self.sel = sel
         self.select_timeout = select_timeout
         self.checker_dict = {}
-        self.checker_dict[DHCP_SERVER_IPV4] = DhcpServerTableIntfEnablementEventChecker(self.sel)
-        self.checker_dict[VLAN] = VlanTableEventChecker(self.sel)
-        self.checker_dict[VLAN_INTERFACE] = VlanIntfTableEventChecker(self.sel)
+        for checker in checkers:
+            self.checker_dict[checker.get_class_name()] = checker
 
     def enable_checker(self, checker_names):
         """
@@ -345,7 +364,7 @@ class DhcpRelaydDbMonitor(object):
             if table not in self.checker_dict:
                 syslog.syslog(syslog.LOG_ERR, "Cannot find checker for {} in checker_dict".format(table))
                 continue
-            self.checker_dict[table].enable(self.db_connector.config_db)
+            self.checker_dict[table].enable()
 
     def check_db_update(self, db_snapshot):
         """
@@ -358,23 +377,21 @@ class DhcpRelaydDbMonitor(object):
         state, _ = self.sel.select(self.select_timeout)
         if state == swsscommon.Select.TIMEOUT or state != swsscommon.Select.OBJECT:
             return (False, False, False)
-        return (self.checker_dict[DHCP_SERVER_IPV4].check_update_event(db_snapshot),
-                self.checker_dict[VLAN].check_update_event(db_snapshot),
-                self.checker_dict[VLAN_INTERFACE].check_update_event(db_snapshot))
+        return (self.checker_dict["DhcpServerTableIntfEnablementEventChecker"].check_update_event(db_snapshot),
+                self.checker_dict["VlanTableEventChecker"].check_update_event(db_snapshot),
+                self.checker_dict["VlanIntfTableEventChecker"].check_update_event(db_snapshot))
 
 
 class DhcpServdDbMonitor(object):
     checker_dict = {}
 
-    def __init__(self, db_connector, select_timeout=DEFAULT_SELECT_TIMEOUT):
+    def __init__(self, db_connector, sel, checkers, select_timeout=DEFAULT_SELECT_TIMEOUT):
         self.db_connector = db_connector
-        self.sel = swsscommon.Select()
+        self.sel = sel
         self.select_timeout = select_timeout
-        all_checker_classes = ConfigDbEventChecker.get_all_subclasses()
-        checker_list = [checker(self.sel) for checker in all_checker_classes
-                        if checker != DhcpServerTableIntfEnablementEventChecker]
-        for checker in checker_list:
-            self.checker_dict[checker.table_name] = checker
+        self.checker_dict = {}
+        for checker in checkers:
+            self.checker_dict[checker.get_class_name()] = checker
 
     def disable_checkers(self, checker_names):
         """
@@ -398,7 +415,7 @@ class DhcpServdDbMonitor(object):
             if table not in self.checker_dict:
                 syslog.syslog(syslog.LOG_ERR, "Cannot find checker for {} in checker_dict".format(table))
                 continue
-            self.checker_dict[table].enable(self.db_connector.config_db)
+            self.checker_dict[table].enable()
 
     def check_db_update(self, db_snapshot):
         """
@@ -415,5 +432,8 @@ class DhcpServdDbMonitor(object):
         for checker in self.checker_dict.values():
             if not checker.is_enabled():
                 continue
-            need_refresh |= checker.check_update_event(db_snapshot)
+            if need_refresh:
+                checker.clear_event()
+            else:
+                need_refresh |= checker.check_update_event(db_snapshot)
         return need_refresh

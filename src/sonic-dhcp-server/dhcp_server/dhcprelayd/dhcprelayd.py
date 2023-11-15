@@ -8,7 +8,8 @@ import syslog
 import time
 from swsscommon import swsscommon
 from dhcp_server.common.utils import DhcpDbConnector, terminate_proc
-from dhcp_server.common.dhcp_db_monitor import DhcpRelaydDbMonitor
+from dhcp_server.common.dhcp_db_monitor import DhcpRelaydDbMonitor, DhcpServerTableIntfEnablementEventChecker, \
+     VlanTableEventChecker, VlanIntfTableEventChecker
 
 REDIS_SOCK_PATH = "/var/run/redis/redis.sock"
 DHCP_SERVER_IPV4_SERVER_IP = "DHCP_SERVER_IPV4_SERVER_IP"
@@ -16,15 +17,13 @@ DHCP_SERVER_IPV4 = "DHCP_SERVER_IPV4"
 VLAN = "VLAN"
 DEFAULT_SELECT_TIMEOUT = 5000  # millisecond
 DHCP_SERVER_INTERFACE = "eth0"
-DEFAULT_SUBSCRIBED_tABLES = ["VLAN", "DHCP_SERVER_IPV4", "VLAN_INTERFACE"]
-
+PORT_MODE_CHECKER = ["DhcpServerTableIntfEnablementEventChecker", "VlanTableEventChecker", "VlanIntfTableEventChecker"]
 KILLED_OLD = 1
 NOT_KILLED = 2
 NOT_FOUND_PROC = 3
 
 
 class DhcpRelayd(object):
-    sel = None
     enabled_dhcp_interfaces = set()
 
     def __init__(self, db_connector, db_monitor):
@@ -36,6 +35,7 @@ class DhcpRelayd(object):
         self.db_connector = db_connector
         self.last_refresh_time = None
         self.dhcp_relayd_monitor = db_monitor
+        self.enabled_dhcp_interfaces = set()
 
     def start(self):
         """
@@ -179,8 +179,13 @@ class DhcpRelayd(object):
 
 def main():
     dhcp_db_connector = DhcpDbConnector(redis_sock=REDIS_SOCK_PATH)
-    db_monitor = DhcpRelaydDbMonitor(dhcp_db_connector, DEFAULT_SELECT_TIMEOUT)
-    db_monitor.enable_checker(DEFAULT_SUBSCRIBED_tABLES)
+    sel = swsscommon.Select()
+    checkers = []
+    checkers.append(DhcpServerTableIntfEnablementEventChecker(sel, dhcp_db_connector.config_db))
+    checkers.append(VlanIntfTableEventChecker(sel, dhcp_db_connector.config_db))
+    checkers.append(VlanTableEventChecker(sel, dhcp_db_connector.config_db))
+    db_monitor = DhcpRelaydDbMonitor(dhcp_db_connector, sel, checkers, DEFAULT_SELECT_TIMEOUT)
+    db_monitor.enable_checker(PORT_MODE_CHECKER)
     dhcprelayd = DhcpRelayd(dhcp_db_connector, db_monitor)
     dhcprelayd.start()
     dhcprelayd.wait()
