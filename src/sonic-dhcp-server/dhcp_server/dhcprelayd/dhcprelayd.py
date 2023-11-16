@@ -17,7 +17,7 @@ DHCP_SERVER_IPV4 = "DHCP_SERVER_IPV4"
 VLAN = "VLAN"
 DEFAULT_SELECT_TIMEOUT = 5000  # millisecond
 DHCP_SERVER_INTERFACE = "eth0"
-PORT_MODE_CHECKER = ["DhcpServerTableIntfEnablementEventChecker", "VlanTableEventChecker", "VlanIntfTableEventChecker"]
+DEFAULT_CHECKER = ["DhcpServerTableIntfEnablementEventChecker", "VlanTableEventChecker", "VlanIntfTableEventChecker"]
 KILLED_OLD = 1
 NOT_KILLED = 2
 NOT_FOUND_PROC = 3
@@ -185,7 +185,7 @@ def main():
     checkers.append(VlanIntfTableEventChecker(sel, dhcp_db_connector.config_db))
     checkers.append(VlanTableEventChecker(sel, dhcp_db_connector.config_db))
     db_monitor = DhcpRelaydDbMonitor(dhcp_db_connector, sel, checkers, DEFAULT_SELECT_TIMEOUT)
-    db_monitor.enable_checker(PORT_MODE_CHECKER)
+    db_monitor.enable_checker(DEFAULT_CHECKER)
     dhcprelayd = DhcpRelayd(dhcp_db_connector, db_monitor)
     dhcprelayd.start()
     dhcprelayd.wait()
