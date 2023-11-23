@@ -255,13 +255,13 @@ class DhcpServCfgGenerator(object):
             if list_length == 0 or list_length > 2:
                 syslog.syslog(syslog.LOG_WARNING, f"Length of {curr_range} is {list_length}, which is invalid!")
                 continue
-            address_1 = ipaddress.ip_address(curr_range[0])
-            address_2 = ipaddress.ip_address(curr_range[1] if list_length == 2 else curr_range[0])
+            address_start = ipaddress.ip_address(curr_range[0])
+            address_end = ipaddress.ip_address(curr_range[1] if list_length == 2 else curr_range[0])
             # To make sure order of range is correct
-            if address_1 > address_2:
+            if address_start > address_end:
                 syslog.syslog(syslog.LOG_WARNING, f"Start of {curr_range} is greater than end, skip it")
                 continue
-            ranges[range] = [address_1, address_2]
+            ranges[range] = [address_start, address_end]
 
         return ranges
 
