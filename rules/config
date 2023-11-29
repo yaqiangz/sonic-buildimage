@@ -155,6 +155,10 @@ INCLUDE_DHCP_RELAY = y
 # INCLUDE_DHCP_SERVER - build and install dhcp-server package
 INCLUDE_DHCP_SERVER = n
 
+# INCLUDE_DHCP_SERVER_VS - build and install dhcp-server package in vs image, if it is set to y, would always
+# build dhcp_server in vs image no matter what the value of INCLUDE_DHCP_SERVER is.
+INCLUDE_DHCP_SERVER_VS = y
+
 # INCLUDE_P4RT - build docker-p4rt for P4RT support
 INCLUDE_P4RT = n
 
