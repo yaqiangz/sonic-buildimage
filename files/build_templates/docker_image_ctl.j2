@@ -4,6 +4,7 @@
 # if no instance number is passed to this script, $DEV will simply be unset, resulting in docker
 # commands being sent to the base container name. E.g. `docker start database$DEV` simply starts
 # the container `database` if no instance number is passed since `$DEV` is not defined
+# include_arping = {{include_arping}}
 
 
 {%- if docker_container_name == "database" %}
@@ -646,6 +647,9 @@ start() {
         --env "NAMESPACE_COUNT"="$NUM_ASIC" \
         --env "DEV"="$DEV" \
         --env "CONTAINER_NAME"=$DOCKERNAME \
+{%- if docker_container_name == "dhcp_relay" and include_arping == "y" %}
+        --cap-add=NET_ADMIN \
+{%- endif %}
         --name=$DOCKERNAME \
 {%- if docker_container_name == "gbsyncd" %}
         -v /var/run/docker-syncd$DEV:/var/run/sswsyncd \

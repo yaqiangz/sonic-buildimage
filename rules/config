@@ -152,6 +152,9 @@ INCLUDE_NAT = y
 # INCLUDE_DHCP_RELAY - build and install dhcp-relay package
 INCLUDE_DHCP_RELAY = y
 
+# INCLUDE_ARPING - install arping in dhcp_relay container
+INCLUDE_ARPING = y
+
 # INCLUDE_DHCP_SERVER - build and install dhcp-server package
 INCLUDE_DHCP_SERVER ?= n
 

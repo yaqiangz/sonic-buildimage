@@ -19,6 +19,10 @@ RUN apt-get install -y libjsoncpp-dev \
 
 RUN pip3 install psutil
 
+{% if INCLUDE_ARPING == "y" -%}
+RUN apt-get install -y arping
+{%- endif %}
+
 RUN apt-get install -y libjsoncpp-dev
 
 {% if docker_dhcp_relay_debs.strip() -%}
