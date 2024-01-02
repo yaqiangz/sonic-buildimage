@@ -149,12 +149,13 @@ class DhcpServCfgGenerator(object):
                                   .format(dhcp_interface_name))
                     continue
                 curr_options = {}
-                for option in dhcp_config["customized_options"]:
-                    if option in customized_options.keys():
-                        curr_options[option] = {
-                            "always_send": customized_options[option]["always_send"],
-                            "value": customized_options[option]["value"]
-                        }
+                if "customized_options" in dhcp_config:
+                    for option in dhcp_config["customized_options"]:
+                        if option in customized_options.keys():
+                            curr_options[option] = {
+                                "always_send": customized_options[option]["always_send"],
+                                "value": customized_options[option]["value"]
+                            }
                 for dhcp_interface_ip, port_config in port_ips[dhcp_interface_name].items():
                     pools = []
                     for port_name, ip_ranges in port_config.items():
@@ -354,6 +355,9 @@ class DhcpServCfgGenerator(object):
                 syslog.syslog(syslog.LOG_WARNING, f"Cannot find {splits[1]} in port_alias_map")
                 continue
             port = self.port_alias_map[splits[1]]
+            if dhcp_interface_name not in vlan_interfaces:
+                syslog.syslog(syslog.LOG_WARNING, f"Interface {dhcp_interface_name} doesn't have IPv4 address")
+                continue
             if dhcp_interface_name not in port_ips:
                 port_ips[dhcp_interface_name] = {}
             # Get ip information of Vlan
