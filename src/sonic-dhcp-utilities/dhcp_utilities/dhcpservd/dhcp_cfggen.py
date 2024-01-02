@@ -136,6 +136,7 @@ class DhcpServCfgGenerator(object):
         client_classes = []
         enabled_dhcp_interfaces = set()
         used_options = set()
+        customized_option_keys = customized_options.keys()
         # Different mode would subscribe different table, always subscribe DHCP_SERVER_IPV4
         subscribe_table = set(["DhcpServerTableCfgChangeEventChecker"])
         for dhcp_interface_name, dhcp_config in dhcp_server_ipv4.items():
@@ -151,11 +152,14 @@ class DhcpServCfgGenerator(object):
                 curr_options = {}
                 if "customized_options" in dhcp_config:
                     for option in dhcp_config["customized_options"]:
-                        if option in customized_options.keys():
-                            curr_options[option] = {
-                                "always_send": customized_options[option]["always_send"],
-                                "value": customized_options[option]["value"]
-                            }
+                        if option not in customized_option_keys:
+                            syslog.syslog(syslog.LOG_WARNING, "Customized option {} configured for {} is not defined"
+                                          .format(option, dhcp_interface_name))
+                            continue
+                        curr_options[option] = {
+                            "always_send": customized_options[option]["always_send"],
+                            "value": customized_options[option]["value"]
+                        }
                 for dhcp_interface_ip, port_config in port_ips[dhcp_interface_name].items():
                     pools = []
                     for port_name, ip_ranges in port_config.items():
