@@ -401,10 +401,6 @@ class DhcpServCfgGenerator(object):
             # Get dhcp member interface name like etp1, be consistent with dhcp_relay, if alias doesn't exist,
             # use port name directly
             port = self.port_alias_map[splits[1]] if splits[1] in self.port_alias_map else splits[1]
-            if splits[1] not in self.port_alias_map:
-                syslog.syslog(syslog.LOG_WARNING, f"Cannot find {splits[1]} in port_alias_map")
-                continue
-            port = self.port_alias_map[splits[1]]
             if dhcp_interface_name not in dhcp_interfaces:
                 syslog.syslog(syslog.LOG_WARNING, f"Interface {dhcp_interface_name} doesn't have IPv4 address")
                 continue
