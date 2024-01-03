@@ -265,7 +265,7 @@ def test_dhcp_port_table_checker(mock_swsscommon_dbconnector_init, tested_data, 
             assert expected_res == check_res
 
 
-@pytest.mark.parametrize("tested_db_snapshot", [{"used_range": set(["range1"])}, {}])
+@pytest.mark.parametrize("tested_db_snapshot", [{"used_range": {"range1"}}, {}])
 @pytest.mark.parametrize("tested_data", get_subscribe_table_tested_data("test_range_update"))
 def test_dhcp_range_table_checker(mock_swsscommon_dbconnector_init, tested_data, tested_db_snapshot):
     with patch.object(ConfigDbEventChecker, "enable"), \
@@ -282,7 +282,7 @@ def test_dhcp_range_table_checker(mock_swsscommon_dbconnector_init, tested_data,
             assert expected_res == check_res
 
 
-@pytest.mark.parametrize("tested_db_snapshot", [{"used_options": set(["option223"])}, {}])
+@pytest.mark.parametrize("tested_db_snapshot", [{"used_options": {"option223"}}, {}])
 @pytest.mark.parametrize("tested_data", get_subscribe_table_tested_data("test_option_update"))
 def test_dhcp_option_table_checker(mock_swsscommon_dbconnector_init, tested_data, tested_db_snapshot):
     with patch.object(ConfigDbEventChecker, "enable"), \
