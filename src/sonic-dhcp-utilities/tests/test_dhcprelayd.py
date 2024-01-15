@@ -6,9 +6,10 @@ import time
 from common_utils import mock_get_config_db_table, MockProc, MockPopen, MockSubprocessRes, mock_exit_func
 from dhcp_utilities.common.utils import DhcpDbConnector
 from dhcp_utilities.common.dhcp_db_monitor import ConfigDbEventChecker, DhcpRelaydDbMonitor
-from dhcp_utilities.dhcprelayd.dhcprelayd import DhcpRelayd, KILLED_OLD, NOT_KILLED, NOT_FOUND_PROC
+from dhcp_utilities.dhcprelayd.dhcprelayd import DhcpRelayd, KILLED_OLD, NOT_KILLED, NOT_FOUND_PROC, FEATURE_CHECKER, \
+    DHCP_SERVER_CHECKER, VLAN_INTF_CHECKER, VLAN_CHECKERS, MID_PLANE_CHECKER
 from swsscommon import swsscommon
-from unittest.mock import patch, call, ANY, PropertyMock
+from unittest.mock import patch, call, PropertyMock
 
 
 @pytest.mark.parametrize("dhcp_server_enabled", [True, False])
@@ -16,30 +17,42 @@ def test_start(mock_swsscommon_dbconnector_init, dhcp_server_enabled):
     with patch.object(DhcpRelayd, "_get_dhcp_relay_config") as mock_get_config, \
          patch.object(DhcpRelayd, "_is_dhcp_server_enabled", return_value=dhcp_server_enabled) as mock_enabled, \
          patch.object(DhcpRelayd, "_execute_supervisor_dhcp_relay_process") as mock_execute, \
-         patch.object(DhcpRelaydDbMonitor, "enable_checkers") as mock_enable_checkers, \
-         patch.object(time, "sleep"):
+         patch.object(time, "sleep"), \
+         patch.object(DhcpRelaydDbMonitor, "enable_checkers") as mock_enabled_checkers, \
+         patch.object(DhcpDbConnector, "get_config_db_table", side_effect=mock_get_config_db_table):
         dhcp_db_connector = DhcpDbConnector()
-        dhcprelayd = DhcpRelayd(dhcp_db_connector, DhcpRelaydDbMonitor)
+        dhcprelayd = DhcpRelayd(dhcp_db_connector, DhcpRelaydDbMonitor(None, None, []))
         dhcprelayd.start()
         mock_get_config.assert_called_once_with()
         mock_enabled.assert_called_once_with()
+        enabled_checkers = set(["DhcpServerFeatureStateChecker"])
         if dhcp_server_enabled:
             mock_execute.assert_called_once_with("stop")
-            mock_enable_checkers.assert_called_once_with([ANY, ANY, ANY])
+            enabled_checkers.add("DhcpServerTableIntfEnablementEventChecker")
         else:
             mock_execute.assert_not_called()
-            mock_enable_checkers.assert_not_called()
+        mock_enabled_checkers.assert_called_once_with(enabled_checkers)
 
 
-def test_refresh_dhcrelay(mock_swsscommon_dbconnector_init):
+@pytest.mark.parametrize("smart_switch", [True, False])
+def test_refresh_dhcrelay(mock_swsscommon_dbconnector_init, smart_switch):
     with patch.object(DhcpRelayd, "_get_dhcp_server_ip", return_value="240.127.1.2"), \
          patch.object(DhcpDbConnector, "get_config_db_table", side_effect=mock_get_config_db_table), \
          patch.object(DhcpRelayd, "_start_dhcrelay_process", return_value=None), \
          patch.object(DhcpRelayd, "_start_dhcpmon_process", return_value=None), \
-         patch.object(ConfigDbEventChecker, "enable"):
+         patch.object(ConfigDbEventChecker, "enable"), \
+         patch.object(DhcpRelayd, "_enable_checkers") as mock_enable_checkers, \
+         patch.object(DhcpRelayd, "_disable_checkers") as mock_disable_checkers, \
+         patch.object(DhcpRelayd, "smart_switch", return_value=smart_switch,
+                      new_callable=PropertyMock):
         dhcp_db_connector = DhcpDbConnector()
         dhcprelayd = DhcpRelayd(dhcp_db_connector, None)
         dhcprelayd.refresh_dhcrelay()
+        expected_checkers = set(["VlanIntfTableEventChecker", "VlanTableEventChecker"])
+        if smart_switch:
+            expected_checkers |= set(["MidPlaneTableEventChecker"])
+        mock_enable_checkers.assert_called_once_with(expected_checkers)
+        mock_disable_checkers.assert_called_once_with(set())
 
 
 @pytest.mark.parametrize("new_dhcp_interfaces", [[], ["Vlan1000"], ["Vlan1000", "Vlan2000"]])
@@ -232,3 +245,87 @@ def test_get_dhcp_relay_config(mock_swsscommon_dbconnector_init, mock_swsscommon
                 "PortChannel103", "-iu", "PortChannel104", "-im", "eth0"
             ]
         }
+
+
+@pytest.mark.parametrize("enabled_checkers", [set(["dummy"]), set()])
+def test_enable_checkers(mock_swsscommon_dbconnector_init, mock_swsscommon_table_init, enabled_checkers):
+    with patch.object(DhcpRelayd, "enabled_checkers", return_value=enabled_checkers, new_callable=PropertyMock), \
+         patch.object(DhcpRelaydDbMonitor, "enable_checkers") as mock_enable_checkers:
+        dhcp_db_connector = DhcpDbConnector()
+        dhcprelayd = DhcpRelayd(dhcp_db_connector, DhcpRelaydDbMonitor(None, None, []))
+        dhcprelayd._enable_checkers(["dummy"])
+        mock_enable_checkers.assert_called_once_with(set() if "dummy" in enabled_checkers else set(["dummy"]))
+
+
+@pytest.mark.parametrize("enabled_checkers", [set(["dummy"]), set()])
+def test_disable_checkers(mock_swsscommon_dbconnector_init, mock_swsscommon_table_init, enabled_checkers):
+    with patch.object(DhcpRelayd, "enabled_checkers", return_value=enabled_checkers, new_callable=PropertyMock), \
+         patch.object(DhcpRelaydDbMonitor, "disable_checkers") as mock_disable_checkers:
+        dhcp_db_connector = DhcpDbConnector()
+        dhcprelayd = DhcpRelayd(dhcp_db_connector, DhcpRelaydDbMonitor(None, None, []))
+        dhcprelayd._disable_checkers(["dummy"])
+        mock_disable_checkers.assert_called_once_with(set() if "dummy" not in enabled_checkers else set(["dummy"]))
+
+
+@pytest.mark.parametrize("feature_enabled", [True, False])
+@pytest.mark.parametrize("feature_res", [True, False, None])
+@pytest.mark.parametrize("dhcp_server_res", [True, False, None])
+@pytest.mark.parametrize("vlan_intf_res", [True, False, None])
+@pytest.mark.parametrize("smart_switch", [True, False])
+def test_proceed_with_check_res(mock_swsscommon_dbconnector_init, mock_swsscommon_table_init, feature_enabled,
+                                feature_res, dhcp_server_res, vlan_intf_res, smart_switch):
+    enabled_checkers = set([DHCP_SERVER_CHECKER] + VLAN_CHECKERS)
+    if smart_switch:
+        enabled_checkers.add(MID_PLANE_CHECKER)
+    with patch.object(DhcpRelayd, "_enable_checkers") as mock_enable_checkers, \
+         patch.object(DhcpRelayd, "_execute_supervisor_dhcp_relay_process") as mock_execute_process, \
+         patch.object(DhcpRelayd, "refresh_dhcrelay") as mock_refresh_dhcrelay, \
+         patch.object(DhcpRelayd, "_disable_checkers") as mock_disable_checkers, \
+         patch.object(DhcpRelayd, "_kill_exist_relay_releated_process") as mock_kill_process, \
+         patch.object(DhcpRelayd, "_check_dhcp_relay_processes") as mock_check_process, \
+         patch.object(DhcpRelayd, "smart_switch", return_value=smart_switch,
+                      new_callable=PropertyMock), \
+         patch.object(DhcpRelayd, "enabled_checkers", return_value=enabled_checkers, new_callable=PropertyMock):
+        dhcp_db_connector = DhcpDbConnector()
+        dhcprelayd = DhcpRelayd(dhcp_db_connector, DhcpRelaydDbMonitor(None, None, []))
+        dhcprelayd.dhcp_server_feature_enabled = True if feature_enabled else False
+        check_res = {}
+        if feature_res is not None:
+            check_res[FEATURE_CHECKER] = feature_res
+        if dhcp_server_res is not None:
+            check_res[DHCP_SERVER_CHECKER] = dhcp_server_res
+        if vlan_intf_res is not None:
+            check_res[VLAN_INTF_CHECKER] = vlan_intf_res
+        dhcprelayd._proceed_with_check_res(check_res, feature_enabled)
+        if feature_res is None or not feature_res:
+            # Feature status didn't change
+
+            # disabled -> disabled
+            if not feature_enabled:
+                mock_check_process.assert_called_once_with()
+            # enabled-> enabled
+            else:
+                if vlan_intf_res:
+                    mock_refresh_dhcrelay.assert_called_once_with(True)
+                elif dhcp_server_res:
+                    mock_refresh_dhcrelay.assert_called_once_with(False)
+                else:
+                    mock_refresh_dhcrelay.assert_not_called()
+        else:
+            # Feature status changed
+
+            # enabled -> disabled
+            if feature_enabled:
+                expected_checkers = [DHCP_SERVER_CHECKER] + VLAN_CHECKERS
+                if smart_switch:
+                    expected_checkers.append(MID_PLANE_CHECKER)
+                mock_disable_checkers.assert_called_once_with(set(expected_checkers))
+                mock_kill_process.assert_has_calls([
+                    call([], "dhcpmon", True),
+                    call([], "dhcrelay", True)
+                ])
+            # disabled-> enabled
+            else:
+                mock_enable_checkers.assert_called_once_with([DHCP_SERVER_CHECKER])
+                mock_execute_process.assert_called_once_with("stop")
+                mock_refresh_dhcrelay.assert_called_once_with()

@@ -377,7 +377,7 @@ def test_construct_obj_for_template(mock_swsscommon_dbconnector_init, mock_parse
         dhcp_cfg_generator._construct_obj_for_template(mock_config_db.config_db.get("DHCP_SERVER_IPV4"),
                                                        port_ips, tested_hostname, customized_options)
     assert render_obj == expected_render_obj
-    assert enabled_dhcp_interfaces == {"Vlan1000", "Vlan4000", "Vlan3000", "Vlan6000"}
+    assert enabled_dhcp_interfaces == {"Vlan1000", "Vlan4000", "Vlan3000", "Vlan6000", "bridge_midplane"}
     assert used_options == set(["option223"])
     assert subscribe_table == set(PORT_MODE_CHECKER)
 
