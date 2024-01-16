@@ -384,7 +384,6 @@ libbsd-dev==0.11.7-2
 libbsd0==0.11.7-2
 libbsh-java==2.0b4-20
 libbz2-dev==1.0.8-5+b1
-libbind-export-dev==1:9.11.5
 libc-ares-dev==1.18.1-3
 libc-ares2==1.18.1-3
 libc-dev-bin==2.36-9+deb12u3
