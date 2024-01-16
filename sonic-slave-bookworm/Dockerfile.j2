@@ -514,6 +514,7 @@ RUN apt-get install -y xsltproc
 
 # Install dependencies for isc-dhcp-relay build
 RUN apt-get -y build-dep isc-dhcp
+RUN apt-get -y install bind9-dev
 
 # Install vim
 RUN apt-get install -y vim
