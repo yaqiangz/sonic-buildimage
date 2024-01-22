@@ -18,6 +18,8 @@ RUN apt-get update &&       \
         build-essential     \
         kea-dhcp4-server
 
+RUN mkdir -p /var/run/kea
+
 RUN pip3 install psutil
 # TODO issue on remote rsyslog server in non-host container
 RUN rm -f /etc/supervisor/conf.d/containercfgd.conf
