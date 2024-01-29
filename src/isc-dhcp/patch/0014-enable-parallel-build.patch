@@ -1,8 +1,8 @@
 diff --git a/debian/rules b/debian/rules
-index 3c8318f..28f4657 100755
+index 3d12fb5..f9962ac 100755
 --- a/debian/rules
 +++ b/debian/rules
-@@ -37,6 +37,13 @@ export DO_LPF=1
+@@ -38,6 +38,13 @@ export DO_LPF=1
  CONFFLAGS+=--enable-use-sockets
  endif
  
@@ -14,29 +14,32 @@ index 3c8318f..28f4657 100755
 +endif
 +
  %:
- 	dh $@ --parallel --with autoreconf
+ 	dh $@ --with autoreconf
  
-@@ -46,17 +53,17 @@ override_dh_auto_build:
+@@ -62,19 +69,19 @@ override_dh_auto_build:
  	# ldap-enabled build
  	test -f Makefile && $(MAKE) distclean || true
- 	./configure --with-ldap --with-ldapcrypto CFLAGS="$(CFLAGS) -DNSUPDATE" LIBS="-lirs-export $(LIBS)" $(CONFFLAGS)
+ 	./configure --with-ldap --with-ldapcrypto CFLAGS="$(CFLAGS) -DNSUPDATE" $(CONFFLAGS) LIBS="$(LIBS) -latomic"
 -	$(MAKE)
 +	$(MAKE) $(PARALLEL)
  	mv server/dhcpd dhcpd
  	# ddns-disabled build
  	test -f Makefile && $(MAKE) distclean || true
- 	./configure CFLAGS="$(CFLAGS)" $(CONFFLAGS)
+ 	./configure CFLAGS="$(CFLAGS)" $(CONFFLAGS) LIBS="$(LIBS) -latomic"
 -	$(MAKE)
 +	$(MAKE) $(PARALLEL)
  	mv client/dhclient dhclient
  	# ldap-disabled build
  	test -f Makefile && $(MAKE) distclean || true
- 	./configure CFLAGS="$(CFLAGS) -DNSUPDATE" LIBS="-lirs-export $(LIBS)" $(CONFFLAGS)
+ 	./configure CFLAGS="$(CFLAGS) -DNSUPDATE" $(CONFFLAGS) LIBS="$(LIBS) -latomic"
 -	$(MAKE)
 +	$(MAKE) $(PARALLEL)
+ 	# keama build
+-	$(MAKE) -C keama
++	$(MAKE) $(PARALLEL) -C keama
  
- override_dh_install:
- 	# rename some upstream files
+ override_dh_auto_test:
+ 	/bin/sh keama/tests/runall.sh 2> /tmp/keama-test-errors
 -- 
-2.34.1
+2.25.1
 

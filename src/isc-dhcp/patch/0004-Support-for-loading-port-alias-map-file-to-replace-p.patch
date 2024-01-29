@@ -95,7 +95,7 @@ index 0d9b2e7..b72b1bc 100644
  
  							strncpy(ifname, ip->name, IFNAMSIZ);
  						}
-+						
++
 +						// Attempt to translate SONiC interface name to vendor alias
 +						ret = get_interface_alias_by_name(ifname, ifalias);
 +						if (ret < 0) {
