@@ -11,7 +11,7 @@ $(addprefix $(DEST)/, $(MAIN_TARGET)): $(DEST)/% :
 
 	# Get isc-dhcp release, debian files
 	dget -u http://deb.debian.org/debian/pool/main/i/isc-dhcp/isc-dhcp_$(ISC_DHCP_VERSION_FULL).dsc
-	pushd ./isc-dhcp-$(ISC_DHCP_VERSION_MID)
+	pushd ./isc-dhcp-$(ISC_DHCP_VERSION)
 
 	# Create a git repository here for stg to apply patches
 	git init
