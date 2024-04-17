@@ -204,6 +204,11 @@ class TestCfgGenCaseInsensitive(TestCase):
         output = self.run_script(argument)
         self.assertEqual(output.strip(), "dummy_value")
 
+    def test_minigraph_bgp_router_id(self):
+        argument = ['-m', self.sample_graph, '-p', self.port_config, '-v', "DEVICE_METADATA[\'localhost\'][\'bgp_router_id\']"]
+        output = self.run_script(argument)
+        self.assertEqual(output.strip(), "8.8.8.8")
+
     def test_minigraph_cluster(self):
         argument = ['-m', self.sample_graph, '-p', self.port_config, '-v', "DEVICE_METADATA[\'localhost\'][\'cluster\']"]
         output = self.run_script(argument)

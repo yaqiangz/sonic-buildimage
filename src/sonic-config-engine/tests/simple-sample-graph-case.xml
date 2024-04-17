@@ -44,6 +44,7 @@
     <Routers xmlns:a="http://schemas.datacontract.org/2004/07/Microsoft.Search.Autopilot.Evolution">
       <a:BGPRouterDeclaration>
         <a:ASN>65100</a:ASN>
+        <a:RouterID>8.8.8.8</a:RouterID>
         <a:Hostname>switch-t0</a:Hostname>
         <a:Peers>
           <BGPPeer>
