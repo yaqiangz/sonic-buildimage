@@ -907,6 +907,7 @@ def parse_cpg(cpg, hname, local_devices=[]):
     myasn = None
     bgp_peers_with_range = {}
     bgp_sentinel_sessions = {}
+    bgp_router_id = None
     for child in cpg:
         tag = child.tag
         if tag == str(QName(ns, "PeeringSessions")):
@@ -969,6 +970,9 @@ def parse_cpg(cpg, hname, local_devices=[]):
                 hostname = router.find(str(QName(ns1, "Hostname"))).text
                 if hostname.lower() == hname.lower():
                     myasn = asn
+                    router_id = router.find(str(QName(ns1, "RouterID")))
+                    if router_id is not None:
+                        bgp_router_id = router_id.text
                     peers = router.find(str(QName(ns1, "Peers")))
                     for bgpPeer in peers.findall(str(QName(ns, "BGPPeer"))):
                         addr = bgpPeer.find(str(QName(ns, "Address"))).text
@@ -1013,7 +1017,7 @@ def parse_cpg(cpg, hname, local_devices=[]):
     bgp_internal_sessions = filter_bad_asn(bgp_internal_sessions)
     bgp_voq_chassis_sessions = filter_bad_asn(bgp_voq_chassis_sessions)
 
-    return bgp_sessions, bgp_internal_sessions, bgp_voq_chassis_sessions, myasn, bgp_peers_with_range, bgp_monitors, bgp_sentinel_sessions
+    return bgp_sessions, bgp_internal_sessions, bgp_voq_chassis_sessions, myasn, bgp_peers_with_range, bgp_monitors, bgp_sentinel_sessions, bgp_router_id
 
 
 def parse_meta(meta, hname):
@@ -1566,6 +1570,7 @@ def parse_xml(filename, platform=None, port_config_file=None, asic_name=None, hw
     redundancy_type = None
     qos_profile = None
     rack_mgmt_map = None
+    bgp_router_id = None
 
     hwsku_qn = QName(ns, "HwSku")
     hostname_qn = QName(ns, "Hostname")
@@ -1592,7 +1597,7 @@ def parse_xml(filename, platform=None, port_config_file=None, asic_name=None, hw
             if child.tag == str(QName(ns, "DpgDec")):
                 (intfs, lo_intfs, mvrf, mgmt_intf, voq_inband_intfs, vlans, vlan_members, dhcp_relay_table, pcs, pc_members, acls, acl_table_types, vni, tunnel_intfs, dpg_ecmp_content, static_routes, tunnel_intfs_qos_remap_config) = parse_dpg(child, hostname)
             elif child.tag == str(QName(ns, "CpgDec")):
-                (bgp_sessions, bgp_internal_sessions, bgp_voq_chassis_sessions, bgp_asn, bgp_peers_with_range, bgp_monitors, bgp_sentinel_sessions) = parse_cpg(child, hostname)
+                (bgp_sessions, bgp_internal_sessions, bgp_voq_chassis_sessions, bgp_asn, bgp_peers_with_range, bgp_monitors, bgp_sentinel_sessions, bgp_router_id) = parse_cpg(child, hostname)
             elif child.tag == str(QName(ns, "PngDec")):
                 (neighbors, devices, console_dev, console_port, mgmt_dev, mgmt_port, port_speed_png, console_ports, mux_cable_ports, png_ecmp_content) = parse_png(child, hostname, dpg_ecmp_content)
             elif child.tag == str(QName(ns, "UngDec")):
@@ -1608,7 +1613,7 @@ def parse_xml(filename, platform=None, port_config_file=None, asic_name=None, hw
                 (intfs, lo_intfs, mvrf, mgmt_intf, voq_inband_intfs, vlans, vlan_members, dhcp_relay_table, pcs, pc_members, acls, acl_table_types, vni, tunnel_intfs, dpg_ecmp_content, static_routes, tunnel_intfs_qos_remap_config) = parse_dpg(child, asic_name)
                 host_lo_intfs = parse_host_loopback(child, hostname)
             elif child.tag == str(QName(ns, "CpgDec")):
-                (bgp_sessions, bgp_internal_sessions, bgp_voq_chassis_sessions, bgp_asn, bgp_peers_with_range, bgp_monitors, bgp_sentinel_sessions) = parse_cpg(child, asic_name, local_devices)
+                (bgp_sessions, bgp_internal_sessions, bgp_voq_chassis_sessions, bgp_asn, bgp_peers_with_range, bgp_monitors, bgp_sentinel_sessions, bgp_router_id) = parse_cpg(child, asic_name, local_devices)
             elif child.tag == str(QName(ns, "PngDec")):
                 (neighbors, devices, port_speed_png) = parse_asic_png(child, asic_name, hostname)
             elif child.tag == str(QName(ns, "MetadataDeclaration")):
@@ -1643,6 +1648,9 @@ def parse_xml(filename, platform=None, port_config_file=None, asic_name=None, hw
         'yang_config_validation': 'disable'
         }
     }
+    
+    if bgp_router_id is not None:
+        results['DEVICE_METADATA']['localhost']['bgp_router_id'] = bgp_router_id
 
     if deployment_id is not None:
         results['DEVICE_METADATA']['localhost']['deployment_id'] = deployment_id
