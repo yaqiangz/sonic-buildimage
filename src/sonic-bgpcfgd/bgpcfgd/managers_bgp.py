@@ -166,7 +166,7 @@ class BGPPeerMgrBase(Manager):
         lo0_ipv4 = self.get_lo_ipv4("Loopback0|")
         if (lo0_ipv4 is None and "bgp_router_id"
             not in self.directory.get_slot("CONFIG_DB", swsscommon.CFG_DEVICE_METADATA_TABLE_NAME)["localhost"]):
-            log_warn("Loopback0 ipv4 address is not presented yet")
+            log_warn("Loopback0 ipv4 address is not presented yet and bgp_router_id not configured")
             return False
 
         #
