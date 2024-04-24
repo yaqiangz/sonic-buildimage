@@ -1,7 +1,6 @@
 from unittest.mock import MagicMock, patch
 
 import os
-import pytest
 from bgpcfgd.directory import Directory
 from bgpcfgd.template import TemplateFabric
 from . import swsscommon_test
@@ -22,8 +21,7 @@ def load_constant_files():
     return constant_files
 
 
-def constructor(constants_path, with_lo0_ipv4=True, bgp_router_id="", peer_type="general", with_lo4096_ipv4=False,
-                localhost_obj={"bgp_asn": "65100"}):
+def constructor(constants_path, with_lo0_ipv4=True, bgp_router_id="", peer_type="general", with_lo4096_ipv4=False):
     cfg_mgr = MagicMock()
     constants = load_constants(constants_path)['constants']
     common_objs = {
@@ -43,10 +41,9 @@ def constructor(constants_path, with_lo0_ipv4=True, bgp_router_id="", peer_type=
     assert m.peer_type == peer_type
     assert m.check_neig_meta == ('bgp' in constants and 'use_neighbors_meta' in constants['bgp'] and constants['bgp']['use_neighbors_meta'])
 
+    localhost_obj = {"bgp_asn": "65100"}
     if len(bgp_router_id) != 0:
         localhost_obj["bgp_router_id"] = bgp_router_id
-    elif "bgp_router_id" in localhost_obj:
-        del localhost_obj["bgp_router_id"]
     m.directory.put("CONFIG_DB", swsscommon.CFG_DEVICE_METADATA_TABLE_NAME, "localhost", localhost_obj)
     if with_lo0_ipv4:
         m.directory.put("CONFIG_DB", swsscommon.CFG_LOOPBACK_INTERFACE_TABLE_NAME, "Loopback0|11.11.11.11/32", {})
@@ -130,66 +127,6 @@ def test_add_peer_internal_router_id():
 def test_add_peer_internal_router_id_no_lo4096():
     for constant in load_constant_files():
         m = constructor(constant, peer_type="internal", bgp_router_id="8.8.8.8")
-        res = m.set_handler("30.30.30.1", {'asn': '65200', 'holdtime': '180', 'keepalive': '60', 'local_addr': '30.30.30.30', 'name': 'TOR', 'nhopself': '0', 'rrclient': '0'})
-        assert res, "Expect True return value"
-
-def test_add_peer_sub_role():
-    for constant in load_constant_files():
-        localhost_obj = {"bgp_asn": "65100", "sub_role": "BackEnd"}
-        m = constructor(constant, with_lo4096_ipv4=True, localhost_obj=localhost_obj)
-        res = m.set_handler("30.30.30.1", {'asn': '65200', 'holdtime': '180', 'keepalive': '60', 'local_addr': '30.30.30.30', 'name': 'TOR', 'nhopself': '0', 'rrclient': '0'})
-        assert res, "Expect True return value"
-
-@pytest.mark.parametrize("switch_type", ["voq", "chassis-packet"])
-def test_add_peer_switch_type(switch_type):
-    for constant in load_constant_files():
-        localhost_obj = {"bgp_asn": "65100", "switch_type": switch_type}
-        m = constructor(constant, with_lo4096_ipv4=True, localhost_obj=localhost_obj)
-        res = m.set_handler("30.30.30.1", {'asn': '65200', 'holdtime': '180', 'keepalive': '60', 'local_addr': '30.30.30.30', 'name': 'TOR', 'nhopself': '0', 'rrclient': '0'})
-        assert res, "Expect True return value"
-
-def test_add_peer_no_router_id_no_lo4096_sub_role():
-    for constant in load_constant_files():
-        localhost_obj = {"bgp_asn": "65100", "sub_role": "BackEnd"}
-        m = constructor(constant, localhost_obj=localhost_obj)
-        res = m.set_handler("30.30.30.1", {'asn': '65200', 'holdtime': '180', 'keepalive': '60', 'local_addr': '30.30.30.30', 'name': 'TOR', 'nhopself': '0', 'rrclient': '0'})
-        assert not res, "Expect False return value"
-
-@pytest.mark.parametrize("switch_type", ["voq", "chassis-packet"])
-def test_add_peer_no_router_id_no_lo4096_switch(switch_type):
-    for constant in load_constant_files():
-        localhost_obj = {"bgp_asn": "65100", "switch_type": switch_type}
-        m = constructor(constant, localhost_obj=localhost_obj)
-        res = m.set_handler("30.30.30.1", {'asn': '65200', 'holdtime': '180', 'keepalive': '60', 'local_addr': '30.30.30.30', 'name': 'TOR', 'nhopself': '0', 'rrclient': '0'})
-        assert not res, "Expect False return value"
-
-def test_add_peer_router_id_sub_role():
-    for constant in load_constant_files():
-        localhost_obj = {"bgp_asn": "65100", "sub_role": "BackEnd"}
-        m = constructor(constant, with_lo4096_ipv4=True, bgp_router_id="8.8.8.8", localhost_obj=localhost_obj)
-        res = m.set_handler("30.30.30.1", {'asn': '65200', 'holdtime': '180', 'keepalive': '60', 'local_addr': '30.30.30.30', 'name': 'TOR', 'nhopself': '0', 'rrclient': '0'})
-        assert res, "Expect True return value"
-
-@pytest.mark.parametrize("switch_type", ["voq", "chassis-packet"])
-def test_add_peer_router_id_sub_role(switch_type):
-    for constant in load_constant_files():
-        localhost_obj = {"bgp_asn": "65100", "switch_type": switch_type}
-        m = constructor(constant, with_lo4096_ipv4=True, bgp_router_id="8.8.8.8", localhost_obj=localhost_obj)
-        res = m.set_handler("30.30.30.1", {'asn': '65200', 'holdtime': '180', 'keepalive': '60', 'local_addr': '30.30.30.30', 'name': 'TOR', 'nhopself': '0', 'rrclient': '0'})
-        assert res, "Expect True return value"
-
-def test_add_peer_router_id_no_lo4096_sub_role():
-    for constant in load_constant_files():
-        localhost_obj = {"bgp_asn": "65100", "sub_role": "BackEnd"}
-        m = constructor(constant, bgp_router_id="8.8.8.8", localhost_obj=localhost_obj)
-        res = m.set_handler("30.30.30.1", {'asn': '65200', 'holdtime': '180', 'keepalive': '60', 'local_addr': '30.30.30.30', 'name': 'TOR', 'nhopself': '0', 'rrclient': '0'})
-        assert res, "Expect True return value"
-
-@pytest.mark.parametrize("switch_type", ["voq", "chassis-packet"])
-def test_add_peer_router_id_no_lo4096_sub_role(switch_type):
-    for constant in load_constant_files():
-        localhost_obj = {"bgp_asn": "65100", "switch_type": switch_type}
-        m = constructor(constant, bgp_router_id="8.8.8.8", localhost_obj=localhost_obj)
         res = m.set_handler("30.30.30.1", {'asn': '65200', 'holdtime': '180', 'keepalive': '60', 'local_addr': '30.30.30.30', 'name': 'TOR', 'nhopself': '0', 'rrclient': '0'})
         assert res, "Expect True return value"
 

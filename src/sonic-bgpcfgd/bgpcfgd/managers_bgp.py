@@ -161,25 +161,19 @@ class BGPPeerMgrBase(Manager):
         :return: True if this adding was successful, False otherwise
         """
         print_data = vrf, nbr, data
-        slot_localhost = self.directory.get_slot("CONFIG_DB", swsscommon.CFG_DEVICE_METADATA_TABLE_NAME)["localhost"]
-        bgp_asn = slot_localhost["bgp_asn"]
+        bgp_asn = self.directory.get_slot("CONFIG_DB", swsscommon.CFG_DEVICE_METADATA_TABLE_NAME)["localhost"]["bgp_asn"]
         #
         lo0_ipv4 = self.get_lo_ipv4("Loopback0|")
-        lo4096_ipv4 = self.get_lo_ipv4("Loopback4096|")
-        if lo0_ipv4 is None and "bgp_router_id" not in slot_localhost:
+        if (lo0_ipv4 is None and "bgp_router_id"
+            not in self.directory.get_slot("CONFIG_DB", swsscommon.CFG_DEVICE_METADATA_TABLE_NAME)["localhost"]):
             log_warn("Loopback0 ipv4 address is not presented yet and bgp_router_id not configured")
             return False
-        
-        if ("sub_role" in slot_localhost and slot_localhost["sub_role"] == "BackEnd" or 
-            ("switch_type" in slot_localhost and (slot_localhost["switch_type"] == "voq" or
-                                                  slot_localhost["switch_type"] == "chassis-packet"))):
-            if (lo4096_ipv4 is None and "bgp_router_id" not in slot_localhost):
-                log_warn("Loopback4096 ipv4 address is not presented yet and bgp_router_id not configured")
-                return False
 
         #
         if self.peer_type == 'internal':
-            if (lo4096_ipv4 is None and "bgp_router_id" not in slot_localhost):
+            lo4096_ipv4 = self.get_lo_ipv4("Loopback4096|")
+            if (lo4096_ipv4 is None and "bgp_router_id"
+                not in self.directory.get_slot("CONFIG_DB", swsscommon.CFG_DEVICE_METADATA_TABLE_NAME)["localhost"]):
                 log_warn("Loopback4096 ipv4 address is not presented yet and bgp_router_id not configured")
                 return False
 
