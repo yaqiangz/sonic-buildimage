@@ -94,7 +94,7 @@ router bgp {{ DEVICE_METADATA['localhost']['bgp_asn'] }}
   bgp router-id {{ DEVICE_METADATA["localhost"]["bgp_router_id"] }}
 {% elif lo4096_ipv4 is not none %}
   bgp router-id {{ lo4096_ipv4 }}
-{% endif %%}
+{% endif %}
 {% else %}
 {% if "localhost" in DEVICE_METADATA and "bgp_router_id" in DEVICE_METADATA["localhost"] %}
   bgp router-id {{ DEVICE_METADATA["localhost"]["bgp_router_id"] }}
