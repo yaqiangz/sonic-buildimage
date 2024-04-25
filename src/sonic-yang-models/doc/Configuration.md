@@ -958,8 +958,7 @@ instance is supported in SONiC.
         "buffer_model": "traditional",
         "yang_config_validation": "disable",
         "rack_mgmt_map": "dummy_value",
-        "timezome": "Europe/Kiev",
-        "bgp_router_id": "8.8.8.8"
+        "timezome": "Europe/Kiev"
     }
   }
 }
