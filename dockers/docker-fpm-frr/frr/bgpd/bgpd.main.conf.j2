@@ -8,11 +8,8 @@
 !
 ! TSA configuration
 !
-{% set lo0_ipv4 = get_ipv4_loopback_address(LOOPBACK_INTERFACE, "Loopback0") | ip %}
 {% set lo4096_ipv4 = get_ipv4_loopback_address(LOOPBACK_INTERFACE, "Loopback4096") | ip %}
-{% if lo0_ipv4 is not none %}
-ip prefix-list PL_LoopbackV4 permit {{ lo0_ipv4 }}/32
-{% endif %}
+ip prefix-list PL_LoopbackV4 permit {{ get_ipv4_loopback_address(LOOPBACK_INTERFACE, "Loopback0") | ip }}/32
 !
 {% if get_ipv6_loopback_address(LOOPBACK_INTERFACE, "Loopback0") != 'None' %}
 {% if ( ('localhost' in DEVICE_METADATA) and ('bgp_adv_lo_prefix_as_128' in  DEVICE_METADATA['localhost']) and
@@ -96,17 +93,11 @@ router bgp {{ DEVICE_METADATA['localhost']['bgp_asn'] }}
   bgp router-id {{ lo4096_ipv4 }}
 {% endif %}
 {% else %}
-{% if "localhost" in DEVICE_METADATA and "bgp_router_id" in DEVICE_METADATA["localhost"] %}
-  bgp router-id {{ DEVICE_METADATA["localhost"]["bgp_router_id"] }}
-{% elif lo0_ipv4 is not none%}
-  bgp router-id {{ lo0_ipv4 }}
-{% endif %}
+  bgp router-id {{ get_ipv4_loopback_address(LOOPBACK_INTERFACE, "Loopback0") | ip }}
 {% endif %}
 !
 {# advertise loopback #}
-{% if lo0_ipv4 is not none %}
-  network {{ lo0_ipv4 }}/32
-{% endif %}
+  network {{ get_ipv4_loopback_address(LOOPBACK_INTERFACE, "Loopback0") | ip }}/32
 {% if lo4096_ipv4 is not none and ((multi_asic is defined and DEVICE_METADATA['localhost']['switch_type'] != 'chassis-packet') or (DEVICE_METADATA['localhost']['switch_type'] == 'voq')) %}
   network {{ lo4096_ipv4 }}/32 route-map HIDE_INTERNAL
 {% endif %}
