@@ -377,10 +377,10 @@ class DhcpServCfgGenerator(object):
                                               port_ips)
             if "ranges" in port_config and len(port_config["ranges"]) != 0:
                 for range_name in list(port_config["ranges"]):
+                    used_ranges.add(range_name)
                     if range_name not in ranges:
                         syslog.syslog(syslog.LOG_WARNING, f"Range {range_name} is not in range table, skip")
                         continue
-                    used_ranges.add(range_name)
                     range = ranges[range_name]
                     # Loop the IP of the dhcp interface and find the network that target range is in this network.
                     self._match_range_network(dhcp_interface, dhcp_interface_name, port, range, port_ips)
