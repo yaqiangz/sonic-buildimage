@@ -3,7 +3,6 @@ FROM docker-config-engine-bookworm-{{DOCKER_USERNAME}}:{{DOCKER_USERTAG}}
 
 ARG docker_container_name
 ARG image_version
-RUN [ -f /etc/rsyslog.conf ] && sed -ri "s/%syslogtag%/$docker_container_name#%syslogtag%/;" /etc/rsyslog.conf
 
 ## Make apt-get non-interactive
 ENV DEBIAN_FRONTEND=noninteractive
@@ -21,8 +20,6 @@ RUN apt-get update &&       \
 RUN mkdir -p /var/run/kea
 
 RUN pip3 install psutil
-# TODO issue on remote rsyslog server in non-host container
-RUN rm -f /etc/supervisor/conf.d/containercfgd.conf
 
 {% if docker_dhcp_server_debs.strip() -%}
 # Copy locally-built Debian package dependencies
