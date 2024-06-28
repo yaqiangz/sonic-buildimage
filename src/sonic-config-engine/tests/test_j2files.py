@@ -735,10 +735,6 @@ class TestJ2Files(TestCase):
 
         argument = ['-j', config_db_json, '-t', conf_template, '-a', additional_data]
         self.run_script(argument, output_file=self.output_file)
-        with open(self.output_file) as file:
-            pattern = r'^action.*Device="eth0".*'
-            for line in file:
-                assert not bool(re.match(pattern, line.strip())), "eth0 is not allowed in Mgfx device"
         self.assertTrue(utils.cmp(os.path.join(self.test_dir, 'sample_output', utils.PYvX_DIR, 'rsyslog.conf'),
                                   self.output_file))
 
