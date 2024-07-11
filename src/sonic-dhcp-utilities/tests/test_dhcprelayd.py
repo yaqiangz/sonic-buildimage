@@ -195,23 +195,27 @@ def test_execute_supervisor_dhcp_relay_process(mock_swsscommon_dbconnector_init,
             mock_run.assert_called_once_with(["supervisorctl", op, "dhcpmon-Vlan1000"], check=True)
 
 
-@pytest.mark.parametrize("target_cmds", [[["/usr/bin/dhcrelay"]], [["/usr/bin/dhcpmon"]]])
-def test_check_dhcp_relay_process(mock_swsscommon_dbconnector_init, mock_swsscommon_table_init, target_cmds):
-    exp_config = {"isc-dhcpv4-relay-Vlan1000": ["/usr/bin/dhcrelay"]}
-    with patch("dhcp_utilities.dhcprelayd.dhcprelayd.get_target_process_cmds", return_value=target_cmds), \
+@pytest.mark.parametrize("target_procs", [[MockProc("dhcrelay")], [MockProc("dhcrelay", exited=True)],
+                                          [MockProc("dhcpmon")]])
+def test_check_dhcp_relay_process(mock_swsscommon_dbconnector_init, mock_swsscommon_table_init, target_procs):
+    exp_config = {
+        "isc-dhcpv4-relay-Vlan1000": [
+            "/usr/sbin/dhcrelay", "-d", "-m", "discard", "-a", "%h:%p", "%P", "--name-alias-map-file",
+            "/tmp/port-name-alias-map.txt", "-id", "Vlan1000", "-iu", "docker0", "240.127.1.2"
+        ]
+    }
+    with patch("dhcp_utilities.dhcprelayd.dhcprelayd.get_target_process", return_value=target_procs), \
          patch.object(DhcpRelayd, "dhcp_relay_supervisor_config",
                       return_value=exp_config, new_callable=PropertyMock), \
          patch.object(sys, "exit", mock_exit_func):
         dhcp_db_connector = DhcpDbConnector()
         dhcprelayd = DhcpRelayd(dhcp_db_connector, None)
-        exp_cmds = [value for key, value in exp_config.items() if "isc-dhcpv4-relay" in key]
-        exp_cmds.sort()
         try:
             dhcprelayd._check_dhcp_relay_processes()
         except SystemExit:
-            assert exp_cmds != target_cmds
+            assert target_procs[0].exited or target_procs[0].name() != "dhcrelay"
         else:
-            assert exp_cmds == target_cmds
+            assert not target_procs[0].exited and target_procs[0].name() == "dhcrelay"
 
 
 def test_get_dhcp_relay_config(mock_swsscommon_dbconnector_init, mock_swsscommon_table_init):

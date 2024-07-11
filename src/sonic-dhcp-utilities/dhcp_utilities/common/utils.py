@@ -150,22 +150,21 @@ def _parse_table_to_dict(table):
     return ret
 
 
-def get_target_process_cmds(process_name):
+def get_target_process(process_name):
     """
     Get running process cmds
     Args:
         process_name: name of process
     Returns:
-        List of cmds list
+        List of process
     """
     res = []
     for proc in psutil.process_iter():
         try:
-            curr_proc_name = proc.name()
+            if proc.name() == process_name:
+                res.append(proc)
         except psutil.NoSuchProcess:
             continue
-        if curr_proc_name == process_name:
-            res.append(proc.cmdline())
     return res
 
 

@@ -8,7 +8,7 @@ import sys
 import syslog
 import time
 from swsscommon import swsscommon
-from dhcp_utilities.common.utils import DhcpDbConnector, terminate_proc, get_target_process_cmds, is_smart_switch
+from dhcp_utilities.common.utils import DhcpDbConnector, terminate_proc, get_target_process, is_smart_switch
 from dhcp_utilities.common.dhcp_db_monitor import DhcpRelaydDbMonitor, DhcpServerTableIntfEnablementEventChecker, \
      VlanTableEventChecker, VlanIntfTableEventChecker, DhcpServerFeatureStateChecker, MidPlaneTableEventChecker
 
@@ -224,7 +224,10 @@ class DhcpRelayd(object):
         """
         Check whether dhcrelay running as expected, if not, dhcprelayd will exit with code 1
         """
-        running_cmds = get_target_process_cmds("dhcrelay")
+        try:
+            running_cmds = [proc.cmdline() for proc in get_target_process("dhcrelay")]
+        except psutil.NoSuchProcess:
+            running_cmds = []
         running_cmds.sort()
         expected_cmds = [value for key, value in self.dhcp_relay_supervisor_config.items() if "isc-dhcpv4-relay" in key]
         expected_cmds.sort()
@@ -318,21 +321,20 @@ class DhcpRelayd(object):
         target_procs = []
 
         # Get old dhcrelay process and get old dhcp interfaces
-        for proc in psutil.process_iter():
+        for proc in get_target_process(process_name):
             try:
-                curr_proc_name = proc.name()
+                cmds = proc.cmdline()
             except psutil.NoSuchProcess:
                 continue
-            if curr_proc_name == process_name:
-                cmds = proc.cmdline()
-                index = 0
-                target_procs.append(proc)
-                while index < len(cmds):
-                    if cmds[index] == "-id":
-                        old_dhcp_interfaces.add(cmds[index + 1])
-                        index += 2
-                    else:
-                        index += 1
+
+            index = 0
+            target_procs.append(proc)
+            while index < len(cmds):
+                if cmds[index] == "-id":
+                    old_dhcp_interfaces.add(cmds[index + 1])
+                    index += 2
+                else:
+                    index += 1
         if len(target_procs) == 0:
             return NOT_FOUND_PROC
 

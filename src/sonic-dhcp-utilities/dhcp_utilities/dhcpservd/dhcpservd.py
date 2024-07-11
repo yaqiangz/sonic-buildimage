@@ -40,12 +40,11 @@ class DhcpServd(object):
         """
         for proc in psutil.process_iter():
             try:
-                curr_proc_name = proc.name()
+                if KEA_DHCP4_PROC_NAME in proc.name():
+                    proc.send_signal(signal.SIGHUP)
+                    break
             except psutil.NoSuchProcess:
                 continue
-            if KEA_DHCP4_PROC_NAME in curr_proc_name:
-                proc.send_signal(signal.SIGHUP)
-                break
 
     def dump_dhcp4_config(self):
         """
