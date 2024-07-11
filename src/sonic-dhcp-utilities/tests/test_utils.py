@@ -142,7 +142,8 @@ def test_validate_ttr_type(test_data):
 
 
 def test_get_target_process_cmds():
-    with patch.object(psutil, "process_iter", return_value=[MockProc("dhcrelay", 1), MockProc("dhcpmon", 2)],
+    with patch.object(psutil, "process_iter", return_value=[MockProc("dhcrelay", 1), MockProc("dhcpmon", 2),
+                                                            MockProc("exited_proc", 3, exited=True)],
                       new_callable=PropertyMock):
         res = utils.get_target_process_cmds("dhcrelay")
         expected_res = [

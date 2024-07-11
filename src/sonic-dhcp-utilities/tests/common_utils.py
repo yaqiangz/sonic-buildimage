@@ -65,11 +65,14 @@ def mock_get_config_db_table(table_name):
 
 
 class MockProc(object):
-    def __init__(self, name, pid=None, status=psutil.STATUS_RUNNING):
+    def __init__(self, name, pid=None, exited=False):
         self.proc_name = name
         self.pid = pid
+        self.exited = exited
 
     def name(self):
+        if self.exited:
+            raise psutil.NoSuchProcess(self.pid)
         return self.proc_name
 
     def send_signal(self, sig_num):

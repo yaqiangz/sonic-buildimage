@@ -39,7 +39,11 @@ class DhcpServd(object):
         Send SIGHUP signal to kea-dhcp4 process
         """
         for proc in psutil.process_iter():
-            if KEA_DHCP4_PROC_NAME in proc.name():
+            try:
+                curr_proc_name = proc.name()
+            except psutil.NoSuchProcess:
+                continue
+            if KEA_DHCP4_PROC_NAME in curr_proc_name:
                 proc.send_signal(signal.SIGHUP)
                 break
 

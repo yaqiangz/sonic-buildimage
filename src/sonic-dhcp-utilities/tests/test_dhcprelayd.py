@@ -111,6 +111,7 @@ def test_kill_exist_relay_releated_process(mock_swsscommon_dbconnector_init, new
     process_iter_ret = []
     for running_proc in running_procs:
         process_iter_ret.append(MockProc(running_proc))
+    process_iter_ret.append(MockProc("exited_proc", exited=True))
     with patch.object(psutil, "process_iter", return_value=process_iter_ret), \
          patch.object(ConfigDbEventChecker, "enable"):
         dhcp_db_connector = DhcpDbConnector()
