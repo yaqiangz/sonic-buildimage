@@ -141,12 +141,19 @@ def test_validate_ttr_type(test_data):
     assert res == test_data[2]
 
 
-def test_get_target_process():
-    proc_list = [MockProc("dhcrelay", 1), MockProc("dhcpmon", 2),
-                 MockProc("exited_proc", 3, exited=True)]
-    with patch.object(psutil, "process_iter", return_value=proc_list, new_callable=PropertyMock):
-        res = utils.get_target_process("dhcrelay")
-        assert res == [proc_list[0]]
+def test_get_target_process_cmds():
+    with patch.object(psutil, "process_iter", return_value=[MockProc("dhcrelay", 1),
+                                                            MockProc("dhcrelay", 1, exited=True),
+                                                            MockProc("dhcpmon", 2)],
+                      new_callable=PropertyMock):
+        res = utils.get_target_process_cmds("dhcrelay")
+        expected_res = [
+            [
+                "/usr/sbin/dhcrelay", "-d", "-m", "discard", "-a", "%h:%p", "%P", "--name-alias-map-file",
+                "/tmp/port-name-alias-map.txt", "-id", "Vlan1000", "-iu", "docker0", "240.127.1.2"
+            ]
+        ]
+        assert res == expected_res
 
 
 @pytest.mark.parametrize("is_smart_switch", [True, False])

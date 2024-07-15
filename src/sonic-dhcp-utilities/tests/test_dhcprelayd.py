@@ -195,16 +195,12 @@ def test_execute_supervisor_dhcp_relay_process(mock_swsscommon_dbconnector_init,
             mock_run.assert_called_once_with(["supervisorctl", op, "dhcpmon-Vlan1000"], check=True)
 
 
-@pytest.mark.parametrize("target_procs", [[MockProc("dhcrelay")], [MockProc("dhcrelay", exited=True)],
-                                          [MockProc("dhcpmon")]])
-def test_check_dhcp_relay_process(mock_swsscommon_dbconnector_init, mock_swsscommon_table_init, target_procs):
+@pytest.mark.parametrize("target_procs_cmds", [[["dhcrelay", "-d"]], [["dhcpmon"]]])
+def test_check_dhcp_relay_process(mock_swsscommon_dbconnector_init, mock_swsscommon_table_init, target_procs_cmds):
     exp_config = {
-        "isc-dhcpv4-relay-Vlan1000": [
-            "/usr/sbin/dhcrelay", "-d", "-m", "discard", "-a", "%h:%p", "%P", "--name-alias-map-file",
-            "/tmp/port-name-alias-map.txt", "-id", "Vlan1000", "-iu", "docker0", "240.127.1.2"
-        ]
+        "isc-dhcpv4-relay-Vlan1000": ["dhcrelay", "-d"]
     }
-    with patch("dhcp_utilities.dhcprelayd.dhcprelayd.get_target_process", return_value=target_procs), \
+    with patch("dhcp_utilities.dhcprelayd.dhcprelayd.get_target_process_cmds", return_value=target_procs_cmds), \
          patch.object(DhcpRelayd, "dhcp_relay_supervisor_config",
                       return_value=exp_config, new_callable=PropertyMock), \
          patch.object(sys, "exit", mock_exit_func):
@@ -213,9 +209,9 @@ def test_check_dhcp_relay_process(mock_swsscommon_dbconnector_init, mock_swsscom
         try:
             dhcprelayd._check_dhcp_relay_processes()
         except SystemExit:
-            assert target_procs[0].exited or target_procs[0].name() != "dhcrelay"
+            assert target_procs_cmds[0] != exp_config["isc-dhcpv4-relay-Vlan1000"]
         else:
-            assert not target_procs[0].exited and target_procs[0].name() == "dhcrelay"
+            assert target_procs_cmds[0] == exp_config["isc-dhcpv4-relay-Vlan1000"]
 
 
 def test_get_dhcp_relay_config(mock_swsscommon_dbconnector_init, mock_swsscommon_table_init):
