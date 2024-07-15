@@ -168,6 +168,20 @@ def get_target_process(process_name):
     return res
 
 
+def get_process_cmd(proc):
+    """
+    Get running process cmd
+    Args:
+        proc: process handler
+    Returns:
+        List of cmd, None if process not exist
+    """
+    try:
+        return proc.cmdline()
+    except psutil.NoSuchProcess:
+        return None
+
+
 def is_smart_switch(device_metadata):
     """
     Check in device metadata whether subtype is smartswitch
