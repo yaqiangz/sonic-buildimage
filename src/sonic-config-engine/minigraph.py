@@ -52,7 +52,6 @@ backend_device_types = ['BackEndToRRouter', 'BackEndLeafRouter']
 console_device_types = ['MgmtTsToR']
 dhcp_server_enabled_device_types = ['BmcMgmtToRRouter']
 mgmt_device_types = ['BmcMgmtToRRouter', 'MgmtToRRouter', 'MgmtTsToR']
-leafrouter_device_types = ['LeafRouter']
 
 # Counters disabled on management devices
 mgmt_disabled_counters = ["BUFFER_POOL_WATERMARK", "PFCWD", "PG_DROP", "PG_WATERMARK", "PORT_BUFFER_DROP", "QUEUE", "QUEUE_WATERMARK"]
@@ -2612,7 +2611,7 @@ def parse_xml(filename, platform=None, port_config_file=None, asic_name=None, hw
         results['SYSLOG_SERVER'] = dict((item, {}) for item in syslog_servers)
         results['DHCP_SERVER'] = dict((item, {}) for item in dhcp_servers)
         results['DHCP_RELAY'] = dhcp_relay_table
-        results['NTP_SERVER'] = dict((item, {}) for item in ntp_servers)
+        results['NTP_SERVER'] = dict((item, {'iburst': 'on'}) for item in ntp_servers)
         # Set default DNS nameserver from dns.j2
         results['DNS_NAMESERVER'] = {}
         if os.environ.get("CFGGEN_UNIT_TESTING", "0") == "2":
@@ -2707,10 +2706,6 @@ def parse_xml(filename, platform=None, port_config_file=None, asic_name=None, hw
     # Disable unsupported counters on management devices
     if current_device and current_device['type'] in mgmt_device_types:
         results["FLEX_COUNTER_TABLE"] = {counter: {"FLEX_COUNTER_STATUS": "disable"} for counter in mgmt_disabled_counters}
-
-    # Enable bgp-suppress-fib by default for leafrouter
-    if current_device and current_device['type'] in leafrouter_device_types:
-        results['DEVICE_METADATA']['localhost']['suppress-fib-pending'] = 'enabled'
 
     return results
 
