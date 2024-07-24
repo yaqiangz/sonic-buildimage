@@ -109,7 +109,9 @@ class DhcpRelayd(object):
         self._disable_checkers(checkers_to_be_disabled)
 
         self._start_dhcrelay_process(dhcp_interfaces, dhcp_server_ip, force_kill)
-        self._start_dhcpmon_process(dhcp_interfaces, force_kill)
+
+        # TODO dhcpmon is not ready for count packet for dhcp_server, hence comment invoke it for now
+        # self._start_dhcpmon_process(dhcp_interfaces, force_kill)
 
     def wait(self):
         """
