@@ -309,7 +309,7 @@ class DhcpRelayd(object):
         for pid, cmds in pids_cmds.items():
             proc = psutil.Process(pid)
             if proc.status() == psutil.STATUS_ZOMBIE:
-                syslog.syslog(syslog.LOG_ERR, "Faild to start dhcpmon process: {}".format(cmds))
+                syslog.syslog(syslog.LOG_ERR, "Failed to start dhcpmon process: {}".format(cmds))
                 terminate_proc(proc)
             else:
                 syslog.syslog(syslog.LOG_INFO, "dhcpmon process started successfully, cmds: {}".format(cmds))
