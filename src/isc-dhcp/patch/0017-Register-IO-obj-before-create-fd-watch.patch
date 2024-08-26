@@ -1,0 +1,61 @@
+From 7331cc3b6d5d092079b6430dead83e5b3e6b2e10 Mon Sep 17 00:00:00 2001
+From: yaqiangz <zyq1512099831@gmail.com>
+Date: Mon, 26 Aug 2024 02:18:52 +0000
+Subject: [PATCH] Register IO obj before create fd watch
+
+---
+ omapip/dispatch.c | 31 +++++++++++++++----------------
+ 1 file changed, 15 insertions(+), 16 deletions(-)
+
+diff --git a/omapip/dispatch.c b/omapip/dispatch.c
+index ba99889..0beb393 100644
+--- a/omapip/dispatch.c
++++ b/omapip/dispatch.c
+@@ -255,6 +255,21 @@ isc_result_t omapi_register_io_object (omapi_object_t *h,
+ 		fd = writefd(h);
+ 	}
+ 
++	/* Find the last I/O state, if there are any. */
++	for (p = omapi_io_states.next;
++	     p && p -> next; p = p -> next)
++		;
++	if (p)
++		omapi_io_reference (&p -> next, obj, MDL);
++	else
++		omapi_io_reference (&omapi_io_states.next, obj, MDL);
++
++	obj -> readfd = readfd;
++	obj -> writefd = writefd;
++	obj -> reader = reader;
++	obj -> writer = writer;
++	obj -> reaper = reaper;
++
+ 	if (fd_flags != 0) {
+ 		status = isc_socket_fdwatchcreate(dhcp_gbl_ctx.socketmgr,
+ 						  fd, fd_flags,
+@@ -274,22 +289,6 @@ isc_result_t omapi_register_io_object (omapi_object_t *h,
+ 		}
+ 	}
+ 
+-
+-	/* Find the last I/O state, if there are any. */
+-	for (p = omapi_io_states.next;
+-	     p && p -> next; p = p -> next)
+-		;
+-	if (p)
+-		omapi_io_reference (&p -> next, obj, MDL);
+-	else
+-		omapi_io_reference (&omapi_io_states.next, obj, MDL);
+-
+-	obj -> readfd = readfd;
+-	obj -> writefd = writefd;
+-	obj -> reader = reader;
+-	obj -> writer = writer;
+-	obj -> reaper = reaper;
+-
+ 	omapi_io_dereference(&obj, MDL);
+ 	return ISC_R_SUCCESS;
+ }
+-- 
+2.25.1
+
