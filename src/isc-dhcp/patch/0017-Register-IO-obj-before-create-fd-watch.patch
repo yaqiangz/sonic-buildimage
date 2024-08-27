@@ -1,4 +1,4 @@
-From 449a90a20967a3fa33535662ecd259793ad078ae Mon Sep 17 00:00:00 2001
+From debe69ebc8df454f0fa7a8c6f3a7c9622ceaf3c2 Mon Sep 17 00:00:00 2001
 From: yaqiangz <zyq1512099831@gmail.com>
 Date: Mon, 26 Aug 2024 02:18:52 +0000
 Subject: [PATCH] Register IO obj before create fd watch
@@ -8,7 +8,7 @@ Subject: [PATCH] Register IO obj before create fd watch
  1 file changed, 27 insertions(+), 17 deletions(-)
 
 diff --git a/omapip/dispatch.c b/omapip/dispatch.c
-index ba99889..7f21c9a 100644
+index 644ab43..d9b9a57 100644
 --- a/omapip/dispatch.c
 +++ b/omapip/dispatch.c
 @@ -123,6 +123,7 @@ omapi_iscsock_cb(isc_task_t   *task,
@@ -37,7 +37,7 @@ index ba99889..7f21c9a 100644
 +		           obj->fd->methods->getfd(obj->fd));
  		return(0);
  	}
- #endif	  
+ #endif
 @@ -170,8 +176,11 @@ omapi_iscsock_cb(isc_task_t   *task,
  		 * read and got no bytes) we don't need to try
  		 * again.
@@ -45,7 +45,7 @@ index ba99889..7f21c9a 100644
 -		if (status == ISC_R_SHUTTINGDOWN)
 +		if (status == ISC_R_SHUTTINGDOWN) {
 +			log_error ("Isc socket callback of fd %d return 0 because reader shutdown",
-+		               obj->fd->methods->getfd(obj->fd));
++			           obj->fd->methods->getfd(obj->fd));
  			return (0);
 +		}
  		/* Otherwise We always ask for more when reading */
