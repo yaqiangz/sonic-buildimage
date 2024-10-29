@@ -43,12 +43,15 @@ def lease(db, dhcp_interface):
     for key in dbconn.keys("STATE_DB", "DHCP_SERVER_IPV4_LEASE|" + dhcp_interface + "|*"):
         entry = dbconn.get_all("STATE_DB", key)
         interface, mac = key.split("|")[1:]
-        port = dbconn.get("STATE_DB", "FDB_TABLE|" + interface + ":" + mac, "port")
-        if not port:
-            # Smart switch sample: aa:bb:cc:dd:ee:ff dev dpu0 master bridge-midplane
-            (out, _) = clicommon.run_command("sudo bridge fdb show | grep {}".format(mac), return_cmd=True, shell=True)
-            match = re.match(r'([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2} dev (.*) master (.*)', out)
-            if match and match.group(3) == interface:
+        port = ""
+        # Smart switch sample: aa:bb:cc:dd:ee:ff dev dpu0 master bridge-midplane
+        (out, _) = clicommon.run_command("sudo bridge fdb show | grep {}".format(mac), return_cmd=True, shell=True)
+        match = re.match(r'([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2} dev (.*) master (.*)', out)
+        if match:
+            splits = match.group(2).split(" ")
+            if len(splits) == 3 and "Vlan{}".format(splits[2]) == interface:
+                port = splits[0]
+            elif match.group(3) == interface:
                 port = match.group(2)
         if not port:
             port = "<Unknown>"
