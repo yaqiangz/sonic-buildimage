@@ -7,7 +7,6 @@ import utilities_common.cli as clicommon
 import ipaddress
 from datetime import datetime
 import fnmatch
-import re
 
 
 def ts_to_str(ts):
