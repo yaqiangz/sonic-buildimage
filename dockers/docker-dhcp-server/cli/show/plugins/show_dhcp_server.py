@@ -48,8 +48,8 @@ def lease(db, dhcp_interface):
             # Smart switch sample: aa:bb:cc:dd:ee:ff dev dpu0 master bridge-midplane
             (out, _) = clicommon.run_command("sudo bridge fdb show | grep {}".format(mac), return_cmd=True, shell=True)
             match = re.match(r'([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2} dev (.*) master (.*)', out)
-            if match and match.group(3) == interface:
-                port = match.group(2)
+            if match and match.group(3).strip() == interface:
+                port = match.group(2).strip()
         if not port:
             port = "<Unknown>"
         table.append([interface + "|" + port, mac, entry["ip"], ts_to_str(entry["lease_start"]), ts_to_str(entry["lease_end"])])
