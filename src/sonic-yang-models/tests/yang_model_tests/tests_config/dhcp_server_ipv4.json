@@ -482,15 +482,6 @@
         }
     },
     "DHCP_SERVER_IPV4_GATEWAY_ABSENT": {
-        "sonic-portchannel:sonic-portchannel": {
-            "sonic-portchannel:PORTCHANNEL": {
-                "PORTCHANNEL_LIST": [
-                    {
-                        "name": "PortChannel1"
-                    }
-                ]
-            }
-        },
         "sonic-port:sonic-port": {
             "sonic-port:PORT": {
                 "PORT_LIST": [
@@ -550,13 +541,6 @@
                         "port": "Ethernet0",
                         "ranges": [
                             "range1"
-                        ]
-                    },
-                    {
-                        "name": "Vlan1000",
-                        "port": "PortChannel1",
-                        "ips": [
-                            "192.168.0.4"
                         ]
                     }
                 ]
