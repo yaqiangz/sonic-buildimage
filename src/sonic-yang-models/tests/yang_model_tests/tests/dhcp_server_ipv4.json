@@ -67,8 +67,7 @@
         "eStr": ["Statement of 'ips' and 'ranges' cannot both exist"]
     },
     "DHCP_SERVER_IPV4_GATEWAY_ABSENT": {
-        "desc": "Missing gateway in DHCP_SERVER_IPV4",
-        "eStrKey" : "Mandatory"
+        "desc": "Missing gateway in DHCP_SERVER_IPV4"
     },
     "DHCP_SERVER_IPV4_LEASE_TIME_ABSENT": {
         "desc": "Missing lease_time in DHCP_SERVER_IPV4",

@@ -64,7 +64,7 @@ module sonic-dhcp-server-ipv4 {
                     }
                 }
 
-                leaf gateway {
+                leaf false {
                     description "Gateway IP for DHCP server";
                     mandatory true;
                     type inet:ipv4-address;
