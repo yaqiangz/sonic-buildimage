@@ -17,6 +17,7 @@ RUN apt-get update      && \
         # TODO: implicitly install dependencies
         libjemalloc2        \
         ebtables
+        libevent
 
 {% if docker_stp_debs.strip() -%}
 # Copy locally-built Debian package dependencies
